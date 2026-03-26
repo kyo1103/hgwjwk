@@ -1,0 +1,109 @@
+version: '3.9'
+
+services:
+  # PostgreSQL 데이터베이스
+  postgres:
+    image: postgres:16-alpine
+    container_name: erp-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: erp_db
+      POSTGRES_USER: erp_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-erp_secret_2024}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./prisma/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - '5432:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U erp_user -d erp_db']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis (BullMQ 큐)
+  redis:
+    image: redis:7-alpine
+    container_name: erp-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis_secret_2024}
+    volumes:
+      - redis_data:/data
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', '--no-auth-warning', '-a', '${REDIS_PASSWORD:-redis_secret_2024}', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Next.js ERP 애플리케이션
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner
+    container_name: erp-app
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://erp_user:${POSTGRES_PASSWORD:-erp_secret_2024}@postgres:5432/erp_db
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_secret_2024}
+      BRIDGE_URL: http://bridge:43115
+      CERT_MASTER_KEY: ${CERT_MASTER_KEY}
+      KAKAO_API_KEY: ${KAKAO_API_KEY:-}
+      KAKAO_SENDER_KEY: ${KAKAO_SENDER_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -f http://localhost:3000/api/health || exit 1']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Bridge Agent (Playwright 자동화 워커)
+  bridge:
+    build:
+      context: ./bridge-agent
+      dockerfile: Dockerfile
+    container_name: erp-bridge
+    restart: unless-stopped
+    ports:
+      - '43115:43115'
+    environment:
+      NODE_ENV: production
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_secret_2024}
+      HOMETAX_USER_ID: ${HOMETAX_USER_ID:-}
+      HOMETAX_USER_PW: ${HOMETAX_USER_PW:-}
+      FOURINSURE_USER_ID: ${FOURINSURE_USER_ID:-}
+      FOURINSURE_USER_PW: ${FOURINSURE_USER_PW:-}
+      HEADLESS: 'true'
+      OUTPUT_DIR: /app/downloads
+      KAKAO_API_KEY: ${KAKAO_API_KEY:-}
+      KAKAO_SENDER_KEY: ${KAKAO_SENDER_KEY:-}
+    volumes:
+      - bridge_downloads:/app/downloads
+      - bridge_screenshots:/app/screenshots
+    depends_on:
+      redis:
+        condition: service_healthy
+    shm_size: '2gb'  # Chromium 메모리
+
+volumes:
+  postgres_data:
+  redis_data:
+  bridge_downloads:
+  bridge_screenshots:
+
+networks:
+  default:
+    name: erp-network

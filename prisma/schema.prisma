@@ -1,0 +1,284 @@
+// Prisma schema for 노무세무ERP
+// PostgreSQL backend
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// 거래처 (Client)
+// ─────────────────────────────────────────────
+model Client {
+  id         String   @id @default(cuid())
+  businessNo String   @unique           // 사업자등록번호
+  name       String                     // 거래처명
+  ceoName    String?                    // 대표자명
+  phone      String?                    // 전화번호
+  email      String?                    // 이메일
+  address    String?                    // 주소
+  notes      String?                    // 메모
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  jobs               Job[]
+  documents          Document[]
+  certificates       Certificate[]
+  employees          Employee[]
+  payrolls           Payroll[]
+  auditLogs          AuditLog[]
+  kakaoNotifications KakaoNotification[]
+
+  @@map("clients")
+}
+
+// ─────────────────────────────────────────────
+// 작업 (Job)
+// ─────────────────────────────────────────────
+model Job {
+  id          String    @id @default(cuid())
+  clientId    String
+  type        String                     // 'hometax' | 'fourinsure'
+  status      JobStatus @default(PENDING)
+  channels    String[]                   // 수집 채널 목록
+  bridgeJobId String?                    // Bridge agent job ID
+  logs        String[]                   // 작업 로그 라인
+  error       String?                    // 오류 메시지
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  client    Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  documents Document[]
+
+  @@index([clientId])
+  @@index([status])
+  @@index([bridgeJobId])
+  @@map("jobs")
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  DONE
+  FAILED
+}
+
+// ─────────────────────────────────────────────
+// 문서 (Document)
+// ─────────────────────────────────────────────
+model Document {
+  id        String   @id @default(cuid())
+  clientId  String
+  jobId     String?                    // 생성 작업 ID (nullable)
+  type      String                     // 문서 타입 코드
+  title     String                     // 문서 제목
+  fileUrl   String?                    // 파일 URL (공개 접근용)
+  filePath  String?                    // 서버 파일 경로
+  fileSize  Int?                       // 파일 크기 (bytes)
+  status    String   @default("ready") // 'ready' | 'expired' | 'error'
+  issuedAt  DateTime?                  // 발급일
+  createdAt DateTime @default(now())
+
+  // Relations
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  job    Job?   @relation(fields: [jobId], references: [id], onDelete: SetNull)
+
+  @@index([clientId])
+  @@index([jobId])
+  @@index([type])
+  @@map("documents")
+}
+
+// ─────────────────────────────────────────────
+// 공인인증서 (Certificate)
+// ─────────────────────────────────────────────
+model Certificate {
+  id            String    @id @default(cuid())
+  clientId      String
+  provider      String                     // 'hometax' | 'fourinsure'
+  encryptedData String                     // AES-256-GCM 암호화 데이터 (base64)
+  iv            String                     // 초기화 벡터 (base64)
+  authTag       String                     // GCM 인증 태그 (base64)
+  validFrom     DateTime?                  // 인증서 유효 시작일
+  validUntil    DateTime?                  // 인증서 만료일
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, provider])
+  @@index([clientId])
+  @@index([validUntil])
+  @@map("certificates")
+}
+
+// ─────────────────────────────────────────────
+// 직원 (Employee)
+// ─────────────────────────────────────────────
+model Employee {
+  id                   String    @id @default(cuid())
+  clientId             String
+  name                 String                     // 직원명
+  encryptedResidentNo  String?                    // 암호화된 주민등록번호
+  position             String?                    // 직위
+  department           String?                    // 부서
+  joinedAt             DateTime?                  // 입사일
+  leftAt               DateTime?                  // 퇴사일
+  baseSalary           Decimal?  @db.Decimal(15, 2) // 기본급
+  bankCode             String?                    // 은행 코드
+  encryptedBankAccount String?                    // 암호화된 계좌번호
+  status               String    @default("active") // 'active' | 'inactive'
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  // Relations
+  client       Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  payrollItems PayrollItem[]
+
+  @@index([clientId])
+  @@index([status])
+  @@map("employees")
+}
+
+// ─────────────────────────────────────────────
+// 급여대장 (Payroll)
+// ─────────────────────────────────────────────
+model Payroll {
+  id             String    @id @default(cuid())
+  clientId       String
+  year           Int                        // 연도
+  month          Int                        // 월 (1-12)
+  status         String    @default("draft") // 'draft' | 'confirmed' | 'paid'
+  totalGross     Decimal   @default(0) @db.Decimal(15, 2) // 지급 총액
+  totalDeduction Decimal   @default(0) @db.Decimal(15, 2) // 공제 총액
+  totalNet       Decimal   @default(0) @db.Decimal(15, 2) // 실수령 총액
+  paidAt         DateTime?                  // 지급일
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  // Relations
+  client       Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  payrollItems PayrollItem[]
+
+  @@unique([clientId, year, month])
+  @@index([clientId])
+  @@index([year, month])
+  @@map("payrolls")
+}
+
+// ─────────────────────────────────────────────
+// 급여명세 (PayrollItem)
+// ─────────────────────────────────────────────
+model PayrollItem {
+  id            String   @id @default(cuid())
+  payrollId     String
+  employeeId    String
+
+  // 지급 항목
+  basePay       Decimal  @default(0) @db.Decimal(15, 2) // 기본급
+  overtimePay   Decimal  @default(0) @db.Decimal(15, 2) // 초과근무수당
+  bonusPay      Decimal  @default(0) @db.Decimal(15, 2) // 상여금
+  mealPay       Decimal  @default(0) @db.Decimal(15, 2) // 식대
+  transportPay  Decimal  @default(0) @db.Decimal(15, 2) // 교통비
+  otherPay      Decimal  @default(0) @db.Decimal(15, 2) // 기타지급
+  grossPay      Decimal  @default(0) @db.Decimal(15, 2) // 지급 합계
+
+  // 공제 항목
+  incomeTax      Decimal  @default(0) @db.Decimal(15, 2) // 소득세
+  localTax       Decimal  @default(0) @db.Decimal(15, 2) // 지방소득세
+  healthIns      Decimal  @default(0) @db.Decimal(15, 2) // 건강보험료
+  pensionIns     Decimal  @default(0) @db.Decimal(15, 2) // 국민연금
+  employmentIns  Decimal  @default(0) @db.Decimal(15, 2) // 고용보험료
+  longCareIns    Decimal  @default(0) @db.Decimal(15, 2) // 장기요양보험료
+  otherDeduct    Decimal  @default(0) @db.Decimal(15, 2) // 기타공제
+  totalDeduct    Decimal  @default(0) @db.Decimal(15, 2) // 공제 합계
+
+  // 실수령액
+  netPay         Decimal  @default(0) @db.Decimal(15, 2) // 실수령액
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  payroll  Payroll  @relation(fields: [payrollId], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+
+  @@unique([payrollId, employeeId])
+  @@index([payrollId])
+  @@index([employeeId])
+  @@map("payroll_items")
+}
+
+// ─────────────────────────────────────────────
+// 감사로그 (AuditLog)
+// ─────────────────────────────────────────────
+model AuditLog {
+  id        String   @id @default(cuid())
+  clientId  String?                    // nullable (시스템 레벨 로그)
+  action    String                     // 액션 코드
+  details   String?                    // 상세 내용 (JSON 문자열 가능)
+  userId    String?                    // 수행한 사용자 ID
+  createdAt DateTime @default(now())
+
+  // Relations
+  client Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  @@index([clientId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ─────────────────────────────────────────────
+// 카카오 알림톡 (KakaoNotification)
+// ─────────────────────────────────────────────
+model KakaoNotification {
+  id             String    @id @default(cuid())
+  clientId       String?                    // nullable
+  recipientPhone String                     // 수신자 전화번호
+  templateCode   String                     // 카카오 템플릿 코드
+  templateParams Json?                      // 템플릿 파라미터
+  status         String    @default("pending") // 'pending' | 'sent' | 'failed'
+  sentAt         DateTime?                  // 발송 완료 시각
+  errorMessage   String?                    // 오류 메시지
+  createdAt      DateTime  @default(now())
+
+  // Relations
+  client Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  @@index([clientId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("kakao_notifications")
+}
+
+// ─────────────────────────────────────────────
+// BullMQ 작업 (QueueJob)
+// ─────────────────────────────────────────────
+model QueueJob {
+  id          String    @id @default(cuid())
+  queueName   String                     // BullMQ 큐 이름
+  bullJobId   String    @unique          // BullMQ 내부 Job ID
+  type        String                     // 작업 타입
+  data        Json                       // 작업 입력 데이터
+  status      String    @default("waiting") // 'waiting' | 'active' | 'completed' | 'failed'
+  result      Json?                      // 작업 결과 (nullable)
+  error       String?                    // 오류 메시지
+  startedAt   DateTime?                  // 작업 시작 시각
+  completedAt DateTime?                  // 작업 완료 시각
+  createdAt   DateTime  @default(now())
+
+  @@index([queueName])
+  @@index([status])
+  @@index([bullJobId])
+  @@map("queue_jobs")
+}

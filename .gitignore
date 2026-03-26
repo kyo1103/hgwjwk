@@ -1,0 +1,19 @@
+.next
+node_modules
+.DS_Store
+*.log
+
+.vercel
+
+# 환경변수 (절대 커밋 금지)
+.env
+.env.local
+.env*.local
+
+# 브리지 에이전트 자격증명 (절대 커밋 금지)
+bridge-agent/.env
+bridge-agent/downloads/
+bridge-agent/screenshots/
+
+# 업로드 파일
+uploads/

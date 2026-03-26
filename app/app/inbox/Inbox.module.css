@@ -1,0 +1,177 @@
+/* Page Header & Tabs */
+.pageHeader {
+  margin-bottom: 24px;
+}
+
+.pageTitle {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--text-1);
+  margin-bottom: 6px;
+  letter-spacing: -0.01em;
+}
+
+.pageSubtitle {
+  font-size: 0.9rem;
+  color: var(--text-3);
+  margin-bottom: 20px;
+}
+
+.filterTabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 1px; /* Align active border */
+}
+
+.filterTab {
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-3);
+  cursor: pointer;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: color 0.2s;
+}
+
+.filterTab:hover {
+  color: var(--text-1);
+}
+
+.filterTab.activeTab {
+  color: var(--text-1);
+}
+
+.filterTab.activeTab::after {
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--brand);
+}
+
+.badge {
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 99px;
+  font-weight: 700;
+}
+
+/* Tabular List */
+.listContainer {
+  background: #FFFFFF;
+  border: 1px solid var(--border-2);
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  overflow: hidden; /* For rounded corners */
+}
+
+.listHeaderRow {
+  display: flex;
+  background: #F9FAFB;
+  border-bottom: 1px solid var(--border-2);
+  padding: 12px 16px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.listBody {
+  display: flex;
+  flex-direction: column;
+}
+
+.listRow {
+  display: flex;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-2);
+  align-items: center;
+  text-decoration: none;
+  color: inherit;
+  transition: background-color 0.15s;
+}
+
+.listRow:last-child {
+  border-bottom: none;
+}
+
+.listRow:hover {
+  background-color: #F8FAFC;
+}
+
+/* Cells */
+.cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cellStatus { width: 100px; flex-shrink: 0; }
+.cellTenant { width: 160px; font-weight: 600; color: var(--text-2); font-size: 0.9rem; flex-shrink: 0; }
+.cellTask { flex: 1; min-width: 0; }
+.cellDate { width: 140px; justify-content: flex-end; flex-shrink: 0; font-size: 0.85rem; font-family: monospace;}
+
+/* Cell Content Formatting */
+.taskName {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.taskId {
+  font-size: 0.75rem;
+  color: var(--text-4);
+  font-family: monospace;
+  margin-left: 8px;
+}
+
+.dateIcon {
+  width: 14px;
+  height: 14px;
+}
+
+.urgentText {
+  color: var(--red);
+  font-weight: 600;
+}
+
+.mutedText {
+  color: var(--text-4);
+}
+
+/* Status Labels */
+.statusLabel {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.statusUrgent { background: var(--red-bg); color: var(--red); }
+.statusTriage { background: var(--amber-bg); color: var(--amber); }
+.statusDoing { background: var(--blue-bg); color: var(--blue); }
+
+/* Empty State */
+.emptyState {
+  padding: 48px;
+  text-align: center;
+  color: var(--text-4);
+  font-size: 0.95rem;
+  font-weight: 500;
+}
