@@ -237,6 +237,9 @@ export default function WorkspaceDashboard({ session }: { session: WorkspaceSess
             </div>
             {session.scope === "admin" ? (
               <>
+                <Link href="/erp/control-tower" className={styles.linkButton}>
+                  신고 관제탑
+                </Link>
                 <Link href="/erp" className={styles.linkButton}>
                   전체 ERP
                 </Link>
