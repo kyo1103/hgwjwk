@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import styles from "@/components/PortalShell.module.css";
 import ThemeToggle from "@/components/ThemeToggle";
+import CopyPageButton from "@/components/CopyPageButton";
 import { memberships } from "@/lib/data";
 import { getPortalContext } from "@/lib/portal-context";
 import { portalHiddenLabels, portalPrimaryTabs, portalUtilityTabs } from "@/lib/portal-config";
@@ -133,6 +134,7 @@ export function PortalShell({ tenant, active, children }: Props) {
           </div>
 
           <div className={styles.topbarMeta}>
+            <CopyPageButton label={`${tenant.name} ${activeLabel}`} />
             <div className={styles.metaCard} style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
               <ThemeToggle />
             </div>
@@ -156,7 +158,9 @@ export function PortalShell({ tenant, active, children }: Props) {
           <p>고객사는 자료를 쉽게 올리고, 세무·노무는 같은 흐름에서 꺼내 쓰도록 탭 구조를 재편했습니다.</p>
         </div>
 
-        <main className={styles.main}>{children}</main>
+        <main className={styles.main} data-copy-root>
+          {children}
+        </main>
       </div>
     </div>
   );

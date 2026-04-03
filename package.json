@@ -8,6 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "perf:build": "python3 scripts/perf-build-report.py .",
+    "perf:hotspots": "python3 scripts/perf-hotspots.py .",
     "agent": "npm --prefix bridge-agent start",
     "agent:dev": "npm --prefix bridge-agent run dev"
   },

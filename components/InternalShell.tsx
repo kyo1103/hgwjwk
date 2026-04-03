@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Inbox, LayoutDashboard, FileText, Users, Activity } from "lucide-react";
 import styles from "./InternalShell.module.css";
 import ThemeToggle from "./ThemeToggle";
+import CopyPageButton from "./CopyPageButton";
 
 type Props = {
   active: string;
@@ -47,9 +48,12 @@ export function InternalShell({ active, children }: Props) {
       <div className={styles.mainContent}>
         <header className={styles.topBar} style={{ justifyContent: "space-between" }}>
           <h1 className={styles.pageTitle}>{active}</h1>
-          <ThemeToggle />
+          <div className={styles.topBarActions}>
+            <CopyPageButton label={active} />
+            <ThemeToggle />
+          </div>
         </header>
-        <main className={styles.contentWrapper}>
+        <main className={styles.contentWrapper} data-copy-root>
           {children}
         </main>
       </div>

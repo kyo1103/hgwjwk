@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Bell } from "lucide-react";
 import styles from "./workspace.module.css";
+import CopyPageButton from "@/components/CopyPageButton";
 import { useERPState } from "@/lib/use-erp-state";
 import type { ChannelKey, ERPClient, ERPDocument, ERPJob } from "@/lib/erp-types";
 import type { WorkspaceSession } from "@/lib/workspace-users";
@@ -14,6 +16,9 @@ import {
   laborIssues,
   leaveBalances,
   monthlyReports,
+  noticeLabel,
+  notifications,
+  qnas,
   serviceRequests,
   taxTasks,
   tenants,
@@ -54,6 +59,7 @@ export default function WorkspaceDashboard({ session }: { session: WorkspaceSess
   const [kakaoPhone, setKakaoPhone] = useState(session.phone);
   const [kakaoFlash, setKakaoFlash] = useState<FlashMessage>(null);
   const [sendingKakao, setSendingKakao] = useState(false);
+  const [alertOpen, setAlertOpen] = useState(false);
 
   const clients = data?.clients ?? [];
 
@@ -87,6 +93,47 @@ export default function WorkspaceDashboard({ session }: { session: WorkspaceSess
     : [];
   const runningJobs = jobs.filter((job) => job.status === "RUNNING");
   const currentTemplate = KAKAO_TEMPLATES.find((template) => template.code === kakaoTemplate) ?? KAKAO_TEMPLATES[0];
+  const adminAlerts = [
+    ...serviceRequests.map((request) => {
+      const tenant = tenants.find((item) => item.id === request.tenant_id);
+      return {
+        id: `request-${request.id}`,
+        tenantName: tenant?.name ?? "고객사",
+        title: request.title,
+        body: request.description ?? "고객사에서 새 요청을 보냈습니다.",
+        status: request.status === "waiting_client" ? "회신 대기" : requestStatusLabel(request.status),
+        createdAt: request.updated_at,
+        tone: request.status === "received" ? "new" : request.status === "waiting_client" ? "warn" : "info",
+      };
+    }),
+    ...qnas.map((item) => {
+      const tenant = tenants.find((entry) => entry.id === item.tenant_id);
+      return {
+        id: `qna-${item.id}`,
+        tenantName: tenant?.name ?? "고객사",
+        title: "고객사 문의",
+        body: item.question,
+        status: item.status,
+        createdAt: item.created_at,
+        tone: item.status === "답변대기" ? "new" : "info",
+      };
+    }),
+    ...notifications.map((item) => {
+      const tenant = tenants.find((entry) => entry.id === item.tenant_id);
+      return {
+        id: `notice-${item.id}`,
+        tenantName: tenant?.name ?? "고객사",
+        title: item.subject ?? noticeLabel(item.type),
+        body: item.body,
+        status: "발송 이력",
+        createdAt: item.sent_at ?? "",
+        tone: "muted",
+      };
+    }),
+  ]
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .slice(0, 12);
+  const unreadAlertCount = adminAlerts.filter((alert) => alert.tone === "new" || alert.tone === "warn").length;
 
   useEffect(() => {
     setKakaoPhone(session.phone);
@@ -231,7 +278,7 @@ export default function WorkspaceDashboard({ session }: { session: WorkspaceSess
 
   return (
     <div className={styles.root}>
-      <div className={styles.container}>
+      <div className={styles.container} data-copy-root>
         <header className={session.scope === "admin" ? styles.adminHeader : styles.topbar}>
           {session.scope === "admin" ? (
             <>
@@ -256,6 +303,40 @@ export default function WorkspaceDashboard({ session }: { session: WorkspaceSess
                 </button>
               </nav>
               <div className={styles.adminHeaderActions}>
+                <div className={styles.alertWrap}>
+                  <button
+                    type="button"
+                    className={styles.alertButton}
+                    onClick={() => setAlertOpen((current) => !current)}
+                  >
+                    <Bell size={16} />
+                    {unreadAlertCount ? <span className={styles.alertDot}>{unreadAlertCount}</span> : null}
+                  </button>
+                  {alertOpen ? (
+                    <div className={styles.alertPanel}>
+                      <div className={styles.alertPanelHeader}>
+                        <strong>고객사 알림</strong>
+                        <span>{adminAlerts.length}건</span>
+                      </div>
+                      <div className={styles.alertList}>
+                        {adminAlerts.map((alert) => (
+                          <div key={alert.id} className={styles.alertItem}>
+                            <div className={styles.alertItemTop}>
+                              <b>{alert.tenantName}</b>
+                              <span className={`${styles.alertState} ${styles[`alertState${capitalizeTone(alert.tone)}`]}`}>
+                                {alert.status}
+                              </span>
+                            </div>
+                            <strong>{alert.title}</strong>
+                            <p>{alert.body}</p>
+                            <small>{formatFullDateTime(alert.createdAt)}</small>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+                <CopyPageButton label={`관리자 ${adminTab === "labor" ? "인사노무" : "세무회계"}`} />
                 <div className={styles.adminUserBadge}>
                   <span>{session.roleLabel}</span>
                   <strong>{session.name}</strong>
@@ -276,6 +357,7 @@ export default function WorkspaceDashboard({ session }: { session: WorkspaceSess
                 <h1 className={styles.topbarTitle}>고객사 전용 워크스페이스</h1>
               </div>
               <div className={styles.topbarActions}>
+                <CopyPageButton label={`${session.companyName} 고객사 워크스페이스`} />
                 <div className={styles.userBadge}>
                   <span>{session.roleLabel}</span>
                   <strong>{session.name}</strong>
@@ -511,31 +593,11 @@ function AdminView(props: {
         .includes(keyword);
     })
     .sort((a, b) => a.hire_date.localeCompare(b.hire_date));
-  const selectedEmployee =
-    tenantEmployees.find((employee) => employee.id === selectedEmployeeId) ?? tenantEmployees[0];
-  const selectedEmployeeDocs = selectedEmployee
-    ? laborDocuments.filter((document) => document.tenant_id === tenant?.id && document.employee_id === selectedEmployee.id)
-    : [];
-  const selectedEmployeeContracts = selectedEmployee
-    ? contracts.filter((contract) => contract.tenant_id === tenant?.id && contract.employee_id === selectedEmployee.id)
-    : [];
-  const selectedEmployeeRequests = selectedEmployee
-    ? serviceRequests.filter((request) => request.tenant_id === tenant?.id && request.employee_id === selectedEmployee.id)
-    : [];
-  const selectedEmployeeTasks = selectedEmployee
+  const tenantLaborTasks = tenant
     ? workTasks.filter(
-        (task) =>
-          task.tenant_id === tenant?.id &&
-          task.employee_id === selectedEmployee.id &&
-          (task.domain === "노무" || task.domain === "공통"),
+        (task) => task.tenant_id === tenant.id && (task.domain === "노무" || task.domain === "공통"),
       )
     : [];
-  const selectedEmployeeIssues = selectedEmployee
-    ? laborIssues.filter((issue) => issue.tenant_id === tenant?.id && issue.employee_id === selectedEmployee.id)
-    : [];
-  const selectedLeaveBalance = selectedEmployee
-    ? leaveBalances.find((leave) => leave.tenant_id === tenant?.id && leave.employee_id === selectedEmployee.id)
-    : undefined;
   const tenantTaxTasks = tenant ? taxTasks.filter((task) => task.tenant_id === tenant.id) : [];
   const tenantMonthlyReports = tenant ? monthlyReports.filter((report) => report.tenant_id === tenant.id) : [];
 
@@ -549,18 +611,6 @@ function AdminView(props: {
       props.setCurrentClientId(filteredCompanyRecords[0].client.id);
     }
   }, [filteredCompanyRecords, props, props.currentClientId]);
-
-  useEffect(() => {
-    if (!tenantEmployees.length) {
-      setSelectedEmployeeId("");
-      return;
-    }
-
-    const exists = tenantEmployees.some((employee) => employee.id === selectedEmployeeId);
-    if (!exists) {
-      setSelectedEmployeeId(tenantEmployees[0].id);
-    }
-  }, [selectedEmployeeId, tenantEmployees]);
 
   return (
     <>
@@ -587,317 +637,375 @@ function AdminView(props: {
       </section>
 
       {props.adminTab === "labor" ? (
-        <section className={styles.boardShell}>
-          <aside className={styles.companyRail}>
-            <div className={styles.laborRailHeader}>
+        <section className={styles.laborBoardShell}>
+          <section className={styles.companyDatabaseSection}>
+            <div className={styles.companyListBar}>
               <div>
-                <span className={styles.sectionEyebrow}>Labor Clients</span>
-                <h2 className={styles.surfaceTitle}>인사노무 운영 업체</h2>
-                <p className={styles.railDescription}>세로 스크롤로 훑고 클릭 즉시 근로자 시트를 확인합니다.</p>
+                <h2 className={styles.surfaceTitle}>업체 / 근로자 시트</h2>
               </div>
-              <div className={styles.counterPill}>{filteredCompanyRecords.length}개</div>
+              <div className={styles.companyListBarTools}>
+                <label className={styles.inlineSearchField}>
+                  <input
+                    type="text"
+                    value={companyQuery}
+                    onChange={(event) => setCompanyQuery(event.target.value)}
+                    placeholder="업체명 또는 사업자번호 검색"
+                  />
+                </label>
+                <div className={styles.counterPill}>{filteredCompanyRecords.length}개 업체</div>
+              </div>
             </div>
 
-            <label className={styles.railSearch}>
-              <span>업체 검색</span>
-              <input
-                type="text"
-                value={companyQuery}
-                onChange={(event) => setCompanyQuery(event.target.value)}
-                placeholder="업체명 또는 사업자번호"
-              />
-            </label>
-
-            <div className={styles.railMiniStats}>
-              <div className={styles.railMiniStat}>
-                <span>재직자</span>
-                <strong>{companyRecords.reduce((sum, item) => sum + item.employeeCount, 0)}명</strong>
-              </div>
-              <div className={styles.railMiniStat}>
+            <div className={styles.companyListSheet}>
+              <div className={styles.companyListHead}>
+                <span>업체명 / 사업자번호</span>
+                <span>담당자</span>
+                <span>근로자 수</span>
+                <span>진행 업무</span>
                 <span>오픈 이슈</span>
-                <strong>{companyRecords.reduce((sum, item) => sum + item.issueCount, 0)}건</strong>
+                <span>상태</span>
               </div>
-            </div>
+              {filteredCompanyRecords.map(({ client, employeeCount, issueCount, openTaskCount, tenant: rowTenant }) => {
+                const isActive = client.id === props.currentClientId;
+                const rowEmployees = (rowTenant ? employees.filter((employee) => employee.tenant_id === rowTenant.id) : [])
+                  .filter((employee) => {
+                    const keyword = employeeQuery.trim().toLowerCase();
+                    if (!keyword) return true;
+                    return [
+                      employee.full_name,
+                      employee.department ?? "",
+                      employee.job_title ?? "",
+                      employee.phone ?? "",
+                    ]
+                      .join(" ")
+                      .toLowerCase()
+                      .includes(keyword);
+                  })
+                  .sort((a, b) => a.hire_date.localeCompare(b.hire_date));
+                const rowRequests = rowTenant
+                  ? serviceRequests.filter((request) => request.tenant_id === rowTenant.id)
+                  : [];
+                const hireRequests = rowRequests.filter((request) => request.type === "hire");
+                const payChangeRequests = rowRequests.filter((request) => request.type === "pay_change");
+                const pendingClientRequests = rowRequests.filter(
+                  (request) => request.status === "waiting_client" || request.status === "received",
+                );
+                const rowContracts = rowTenant
+                  ? contracts.filter((contract) => contract.tenant_id === rowTenant.id)
+                  : [];
+                const rowPayrollDocs = rowTenant
+                  ? laborDocuments.filter(
+                      (document) => document.tenant_id === rowTenant.id && document.category === "payroll",
+                    )
+                  : [];
+                const socialInsuranceTasks = rowTenant
+                  ? workTasks.filter(
+                      (task) =>
+                        task.tenant_id === rowTenant.id &&
+                        (task.title.includes("4대보험") || task.title.includes("취득") || task.title.includes("상실")),
+                    )
+                  : [];
+                const inactiveEmployees = rowTenant
+                  ? employees.filter(
+                      (employee) => employee.tenant_id === rowTenant.id && employee.employment_status !== "active",
+                    )
+                  : [];
+                const automationCards = [
+                  {
+                    title: "신규 채용 접수",
+                    metric: `${hireRequests.length}건`,
+                    detail: hireRequests.length
+                      ? "알림 또는 고객사 입력을 기준으로 자동 셋팅됩니다."
+                      : "대기 중인 신규 채용이 없습니다.",
+                    status: hireRequests.length ? "자동 작성 대기" : "안정",
+                  },
+                  {
+                    title: "근로계약서 자동작성",
+                    metric: `${rowContracts.length}건`,
+                    detail: rowContracts.length
+                      ? "미리 세팅한 템플릿으로 계약서 초안을 생성합니다."
+                      : "신규 입사자 발생 시 자동 생성됩니다.",
+                    status: rowContracts.some((contract) => contract.status !== "fully_signed") ? "확인 필요" : "전달 완료",
+                  },
+                  {
+                    title: "4대보험 / 변동 반영",
+                    metric: `${socialInsuranceTasks.length}건`,
+                    detail: socialInsuranceTasks.length
+                      ? "취득·상실·변동 신고 흐름을 같이 추적합니다."
+                      : "현재 보험 변동 건이 없습니다.",
+                    status: socialInsuranceTasks.some((task) => task.status !== "done") ? "신고 대기" : "안정",
+                  },
+                  {
+                    title: "급여자료 수집",
+                    metric: `${pendingClientRequests.length}건`,
+                    detail: pendingClientRequests.length
+                      ? "고객사 자료 회신을 기준으로 급여 정리를 시작합니다."
+                      : "이번 달 자료 수집 이슈가 없습니다.",
+                    status: pendingClientRequests.length ? "자료 대기" : "수집 완료",
+                  },
+                  {
+                    title: "명세서 / 대장 생성",
+                    metric: `${rowPayrollDocs.length}건`,
+                    detail: rowPayrollDocs.length
+                      ? "급여명세서와 급여대장을 묶어 고객사 전달 대기 중입니다."
+                      : "급여일 전 자동 생성 파이프라인을 준비합니다.",
+                    status: rowPayrollDocs.length ? "전송 준비" : "생성 예정",
+                  },
+                  {
+                    title: "급여 변경 / 재계약",
+                    metric: `${payChangeRequests.length}건`,
+                    detail: payChangeRequests.length
+                      ? "보수월액, 수당, 재계약 변경을 이어서 관리합니다."
+                      : "이번 달 급여 변경 요청이 없습니다.",
+                    status: payChangeRequests.length ? "검토 필요" : "안정",
+                  },
+                  {
+                    title: "퇴사 / 상실 정리",
+                    metric: `${inactiveEmployees.length}명`,
+                    detail: inactiveEmployees.length
+                      ? "퇴사자 서류, 상실, 정산, 보관 문서를 묶어 관리합니다."
+                      : "현재 퇴사 정리 대상자가 없습니다.",
+                    status: inactiveEmployees.length ? "정산 필요" : "안정",
+                  },
+                ];
 
-            <div className={styles.companyRailList}>
-              {filteredCompanyRecords.map(({ client, employeeCount, issueCount, openTaskCount }) => {
                 return (
-                  <button
-                    key={client.id}
-                    type="button"
-                    className={`${styles.companyRailItem} ${client.id === props.currentClientId ? styles.companyRailItemActive : ""}`}
-                    onClick={() => props.setCurrentClientId(client.id)}
-                  >
-                    <div className={styles.companyRailItemTop}>
-                      <strong>{client.name}</strong>
-                      <span className={`${styles.statusPill} ${statusTone(client.channels.hometax)}`}>
-                        {channelSummary(client)}
-                      </span>
-                    </div>
-                    <div className={styles.companyRailMeta}>
-                      <span>{client.bizNo}</span>
-                      <span>담당 {client.manager}</span>
-                    </div>
-                    <div className={styles.companyRailStats}>
-                      <span>직원 {employeeCount}명</span>
-                      <span>열린 업무 {openTaskCount}건</span>
-                      <span className={issueCount ? styles.textDanger : ""}>이슈 {issueCount}건</span>
-                    </div>
-                  </button>
+                  <div key={client.id} className={styles.companyBlock}>
+                    <button
+                      type="button"
+                      className={`${styles.companyListRow} ${isActive ? styles.companyListRowActive : ""}`}
+                      onClick={() => props.setCurrentClientId(client.id)}
+                    >
+                      <div className={styles.companyListNameCell}>
+                        <strong>{client.name}</strong>
+                        <span>{client.bizNo}</span>
+                      </div>
+                      <div className={styles.companyListMetaCell}>
+                        <span>담당 {client.manager}</span>
+                      </div>
+                      <div className={styles.companyListMetaCell}>
+                        <span>근로자 {employeeCount}명</span>
+                      </div>
+                      <div className={styles.companyListMetaCell}>
+                        <span>업무 {openTaskCount}건</span>
+                      </div>
+                      <div className={styles.companyListMetaCell}>
+                        <span className={issueCount ? styles.textDanger : ""}>이슈 {issueCount}건</span>
+                      </div>
+                      <div className={styles.companyListStatusCell}>
+                        <span className={`${styles.statusPill} ${statusTone(client.channels.hometax)}`}>
+                          {channelSummary(client)}
+                        </span>
+                      </div>
+                    </button>
+
+                    {isActive ? (
+                      <div className={styles.inlineEmployeePanel}>
+                        <div className={styles.inlineEmployeeToolbar}>
+                          <div className={styles.inlineEmployeeTitleGroup}>
+                            <strong>{client.name} 근로자</strong>
+                            <span>계약, 급여, 자료를 한 줄에서 확인합니다.</span>
+                          </div>
+                          <div className={styles.inlineEmployeeToolbarRight}>
+                            <label className={styles.sheetSearch}>
+                              <input
+                                type="text"
+                                value={employeeQuery}
+                                onChange={(event) => setEmployeeQuery(event.target.value)}
+                                placeholder="이름, 부서, 직책 검색"
+                              />
+                            </label>
+                          </div>
+                        </div>
+
+                        <div className={styles.inlineEmployeeMeta}>
+                          <span>총 {rowEmployees.length}명</span>
+                          <span>담당자 {client.manager}</span>
+                          <span>사업자번호 {client.bizNo}</span>
+                          <span>인사노무 업무 {tenantLaborTasks.length}건</span>
+                          <span>4대보험 {socialInsuranceTasks.length}건</span>
+                          <span>급여변경 {payChangeRequests.length}건</span>
+                        </div>
+
+                        <div className={styles.automationBoard}>
+                          {automationCards.map((card) => (
+                            <div key={card.title} className={styles.automationCard}>
+                              <div className={styles.automationCardTop}>
+                                <strong>{card.title}</strong>
+                                <span className={styles.automationBadge}>{card.status}</span>
+                              </div>
+                              <b>{card.metric}</b>
+                              <p>{card.detail}</p>
+                              <div className={styles.automationActions}>
+                                <button type="button" className={styles.actionButton}>
+                                  확인
+                                </button>
+                                <button type="button" className={styles.actionButtonPrimary}>
+                                  전송
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {rowTenant ? (
+                          <div className={styles.databaseTable}>
+                            <div className={`${styles.databaseHead} ${styles.laborDatabaseHead}`}>
+                              <span>근로자</span>
+                              <span>입사 / 계약 자동화</span>
+                              <span>계약기간</span>
+                              <span>근로계약서</span>
+                              <span>급여 정리</span>
+                              <span>급여명세서</span>
+                              <span>각종 자료</span>
+                              <span>부서 / 직책</span>
+                              <span>실무 상태</span>
+                            </div>
+
+                            {rowEmployees.map((employee) => {
+                              const employeeLeave = leaveBalances.find(
+                                (leave) => leave.tenant_id === rowTenant.id && leave.employee_id === employee.id,
+                              );
+                              const employeeContracts = contracts.filter(
+                                (contract) => contract.tenant_id === rowTenant.id && contract.employee_id === employee.id,
+                              );
+                              const primaryContract = employeeContracts[0];
+                              const employeeDocs = laborDocuments.filter(
+                                (document) => document.tenant_id === rowTenant.id && document.employee_id === employee.id,
+                              );
+                              const employeePayrollDocs = employeeDocs.filter(
+                                (document) => document.category === "payroll" || document.title.includes("급여"),
+                              );
+                              const employeeMiscDocs = employeeDocs.filter(
+                                (document) => document.category !== "contracts" && document.category !== "payroll",
+                              );
+                              const employeeLaborTasks = workTasks.filter(
+                                (task) =>
+                                  task.tenant_id === rowTenant.id &&
+                                  task.employee_id === employee.id &&
+                                  (task.domain === "노무" || task.domain === "공통") &&
+                                  task.status !== "done",
+                              );
+                              const employeeIssues = laborIssues.filter(
+                                (issue) => issue.tenant_id === rowTenant.id && issue.employee_id === employee.id,
+                              );
+                              const employeeRequest = rowRequests.find(
+                                (request) => request.employee_id === employee.id,
+                              );
+                              const payrollPrep = payrollPreparationLabel(
+                                employeePayrollDocs.length > 0,
+                                employeeRequest?.status === "waiting_client" || employeeRequest?.status === "received",
+                                employee.hire_date,
+                              );
+
+                              return (
+                                <div key={employee.id} className={styles.databaseRow}>
+                                  <span className={styles.cellPrimary}>
+                                    {employee.full_name}
+                                    <small>{employee.employment_status === "active" ? "재직" : employee.employment_status}</small>
+                                  </span>
+                                  <span className={styles.cellStatus}>
+                                    <b>{employeeRequest ? requestTypeLabel(employeeRequest.type) : "정기 운영"}</b>
+                                    <small>
+                                      {employeeRequest
+                                        ? shortRequestSummary(employeeRequest.type, employeeRequest.status)
+                                        : "정기 운영"}
+                                    </small>
+                                  </span>
+                                  <span className={styles.cellStatus}>
+                                    <b>{contractPeriodLabel(employee, primaryContract?.title)}</b>
+                                    <small>{primaryContract ? "계약 기준" : "미등록"}</small>
+                                  </span>
+                                  <span className={styles.cellStatus}>
+                                    <span className={styles.documentActionRow}>
+                                      <button
+                                        type="button"
+                                        className={primaryContract ? `${styles.downloadChip} ${styles.downloadChipActive}` : styles.downloadChip}
+                                      >
+                                        다운
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className={primaryContract ? styles.actionButton : styles.actionButtonMuted}
+                                      >
+                                        확인
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className={primaryContract ? styles.actionButtonPrimary : styles.actionButtonMuted}
+                                      >
+                                        전송
+                                      </button>
+                                    </span>
+                                    <small>
+                                      {primaryContract
+                                        ? `${contractStatusLabel(primaryContract.status)} · 계약서`
+                                        : "자동작성 대기"}
+                                    </small>
+                                  </span>
+                                  <span className={styles.cellStatus}>
+                                    <b>{payrollPrep.title}</b>
+                                    <small>{payrollPrep.title === "자료 대기" ? "자료 회신 후 생성" : payrollPrep.title === "정리 완료" ? "생성 완료" : "급여일 전 생성"}</small>
+                                  </span>
+                                  <span className={styles.cellStatus}>
+                                    <span className={styles.documentActionRow}>
+                                      <button
+                                        type="button"
+                                        className={employeePayrollDocs.length ? `${styles.downloadChip} ${styles.downloadChipActive}` : styles.downloadChip}
+                                      >
+                                        다운
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className={employeePayrollDocs.length ? styles.actionButton : styles.actionButtonMuted}
+                                      >
+                                        확인
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className={employeePayrollDocs.length ? styles.actionButtonPrimary : styles.actionButtonMuted}
+                                      >
+                                        전송
+                                      </button>
+                                    </span>
+                                    <small>
+                                      {employeePayrollDocs.length
+                                        ? `${employeePayrollDocs.length}건 · 다운로드 가능`
+                                        : "미발행 · 검토 후 전송"}
+                                    </small>
+                                  </span>
+                                  <span className={styles.cellStatus}>
+                                    <b>
+                                      {employeeMiscDocs.length ? `${employeeMiscDocs.length}건` : employeeLeave ? `${employeeLeave.remaining_days}일` : "-"}
+                                    </b>
+                                    <small>
+                                      {employeeMiscDocs[0]?.title ?? (employeeLeave ? `연차 잔여 ${employeeLeave.remaining_days}일` : "자료 없음")}
+                                    </small>
+                                  </span>
+                                  <span className={styles.cellStack}>
+                                    <b>{employee.department ?? "-"}</b>
+                                    <small>{employee.job_title ?? "직책 미지정"}</small>
+                                  </span>
+                                  <span className={styles.cellStatus}>
+                                    <b>{employeeLaborTasks.length ? `${employeeLaborTasks.length}건 진행` : "정상"}</b>
+                                    <small className={employeeIssues.length ? styles.textDanger : ""}>
+                                      {employeeIssues.length ? `이슈 ${employeeIssues.length}건` : "리스크 없음"}
+                                    </small>
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <p className={styles.emptyState}>등록된 근로자가 없습니다.</p>
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
                 );
               })}
             </div>
-          </aside>
-
-          <div className={styles.boardMain}>
-            <section className={`${styles.boardOverview} ${styles.laborOverview}`}>
-              <div>
-                <span className={styles.sectionEyebrow}>Labor Dashboard</span>
-                <h2 className={styles.surfaceTitle}>{selectedClient?.name ?? "업체 선택"}</h2>
-                <p className={styles.boardDescription}>선택한 업체의 인사노무 데이터를 즉시 확인합니다.</p>
-              </div>
-              <div className={styles.boardOverviewStats}>
-                <div className={styles.boardMetric}>
-                  <span>담당자</span>
-                  <strong>{selectedClient?.manager ?? "-"}</strong>
-                </div>
-                <div className={styles.boardMetric}>
-                  <span>근로자 수</span>
-                  <strong>{selectedCompanyRecord?.employeeCount ?? 0}</strong>
-                </div>
-                <div className={styles.boardMetric}>
-                  <span>오픈 이슈</span>
-                  <strong>{selectedCompanyRecord?.issueCount ?? 0}</strong>
-                </div>
-                <div className={styles.boardMetric}>
-                  <span>실행 중 업무</span>
-                  <strong>{selectedCompanyRecord?.openTaskCount ?? 0}</strong>
-                </div>
-              </div>
-            </section>
-
-            {tenant ? (
-              <div className={styles.databaseLayout}>
-                <section className={styles.databaseSheet}>
-                  <div className={styles.sheetToolbar}>
-                    <div className={styles.sheetHeaderCluster}>
-                      <span className={styles.sheetLabel}>근로자 운영 시트</span>
-                      <span className={styles.sheetSubLabel}>입사일 오름차순 · 계약/연차/급여/자료를 한 번에 확인</span>
-                    </div>
-                    <label className={styles.sheetSearch}>
-                      <input
-                        type="text"
-                        value={employeeQuery}
-                        onChange={(event) => setEmployeeQuery(event.target.value)}
-                        placeholder="이름, 부서, 직책 검색"
-                      />
-                    </label>
-                  </div>
-
-                  <div className={styles.databaseViewBar}>
-                    <button type="button" className={`${styles.databaseViewChip} ${styles.databaseViewChipActive}`}>전체 근로자</button>
-                    <button type="button" className={styles.databaseViewChip}>계약 갱신 필요</button>
-                    <button type="button" className={styles.databaseViewChip}>급여 확인 필요</button>
-                    <button type="button" className={styles.databaseViewChip}>자료 요청</button>
-                  </div>
-
-                  <div className={`${styles.sheetMetaBar} ${styles.laborMetaBar}`}>
-                    <span>총 {tenantEmployees.length}명</span>
-                    <span>사업자번호 {selectedClient?.bizNo}</span>
-                    <span>연차 기준 {tenant.leave_year_basis === "hire_date" ? "입사일 기준" : "회계연도 기준"}</span>
-                    <span>클릭 없이 회사 선택 즉시 목록 갱신</span>
-                  </div>
-
-                  <div className={styles.databaseViewport}>
-                    <div className={styles.databaseTable}>
-                      <div className={`${styles.databaseHead} ${styles.laborDatabaseHead}`}>
-                        <span>근로자</span>
-                        <span>근로계약서</span>
-                        <span>입사일자</span>
-                        <span>연차</span>
-                        <span>급여명세서</span>
-                        <span>각종 자료</span>
-                        <span>부서 / 직책</span>
-                        <span>급여/실무 상태</span>
-                      </div>
-
-                      {tenantEmployees.map((employee) => {
-                        const employeeLeave = leaveBalances.find(
-                          (leave) => leave.tenant_id === tenant.id && leave.employee_id === employee.id,
-                        );
-                      const employeeContracts = contracts.filter(
-                        (contract) => contract.tenant_id === tenant.id && contract.employee_id === employee.id,
-                      );
-                      const employeeDocs = laborDocuments.filter(
-                        (document) => document.tenant_id === tenant.id && document.employee_id === employee.id,
-                      );
-                      const employeePayrollDocs = employeeDocs.filter(
-                        (document) => document.category === "payroll" || document.title.includes("급여"),
-                      );
-                      const employeeMiscDocs = employeeDocs.filter(
-                        (document) => document.category !== "contracts" && document.category !== "payroll",
-                      );
-                      const employeeLaborTasks = workTasks.filter(
-                        (task) =>
-                          task.tenant_id === tenant.id &&
-                          task.employee_id === employee.id &&
-                          (task.domain === "노무" || task.domain === "공통") &&
-                          task.status !== "done",
-                      );
-                      const employeeIssues = laborIssues.filter(
-                        (issue) => issue.tenant_id === tenant.id && issue.employee_id === employee.id,
-                      );
-
-                        return (
-                          <button
-                            key={employee.id}
-                            type="button"
-                            className={`${styles.databaseRow} ${employee.id === selectedEmployee?.id ? styles.databaseRowActive : ""}`}
-                            onClick={() => setSelectedEmployeeId(employee.id)}
-                          >
-                            <span className={styles.cellPrimary}>
-                              {employee.full_name}
-                              <small>{employee.employment_status === "active" ? "재직" : employee.employment_status}</small>
-                            </span>
-                            <span className={styles.cellStatus}>
-                              <b>{employeeContracts[0] ? contractStatusLabel(employeeContracts[0].status) : "미작성"}</b>
-                              <small>{employeeContracts[0]?.title ?? "근로계약서 등록 필요"}</small>
-                            </span>
-                            <span>{formatDate(employee.hire_date)}</span>
-                            <span>{employeeLeave ? `${employeeLeave.remaining_days}일` : "-"}</span>
-                            <span className={styles.cellStatus}>
-                              <b>{employeePayrollDocs.length ? `${employeePayrollDocs.length}건` : "미발행"}</b>
-                              <small>{employeePayrollDocs.length ? "명세서 보관 중" : "급여자료 확인 필요"}</small>
-                            </span>
-                            <span className={styles.cellStatus}>
-                              <b>{employeeMiscDocs.length ? `${employeeMiscDocs.length}건` : "-"}</b>
-                              <small>{employeeMiscDocs[0]?.title ?? "추가 자료 없음"}</small>
-                            </span>
-                            <span className={styles.cellStack}>
-                              <b>{employee.department ?? "-"}</b>
-                              <small>{employee.job_title ?? "직책 미지정"}</small>
-                            </span>
-                            <span className={styles.cellStatus}>
-                              <b>{employeeLaborTasks.length ? `${employeeLaborTasks.length}건 진행` : "정상"}</b>
-                              <small className={employeeIssues.length ? styles.textDanger : ""}>
-                                {employeeIssues.length ? `이슈 ${employeeIssues.length}건` : "리스크 없음"}
-                              </small>
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </section>
-
-                <aside className={styles.employeeDock}>
-                  {selectedEmployee ? (
-                    <>
-                      <div className={styles.employeeDockHeader}>
-                        <div>
-                          <span className={styles.sectionEyebrow}>Selected Employee</span>
-                          <h3>{selectedEmployee.full_name}</h3>
-                          <p>
-                            {selectedEmployee.department ?? "부서 미지정"} · {selectedEmployee.job_title ?? "직책 미지정"}
-                          </p>
-                        </div>
-                        <div className={styles.dockTitleMeta}>
-                          <span className={styles.counterPill}>{formatDate(selectedEmployee.hire_date)} 입사</span>
-                          <span className={styles.ghostMeta}>{selectedEmployee.phone ?? "연락처 미등록"}</span>
-                        </div>
-                      </div>
-
-                      <div className={styles.dockGroup}>
-                        <strong>핵심 상태</strong>
-                        <div className={styles.dockMetrics}>
-                          <div className={styles.dockMetric}>
-                            <span>계약서</span>
-                            <b>{selectedEmployeeContracts[0] ? contractStatusLabel(selectedEmployeeContracts[0].status) : "미작성"}</b>
-                          </div>
-                          <div className={styles.dockMetric}>
-                            <span>잔여 연차</span>
-                            <b>{selectedLeaveBalance ? `${selectedLeaveBalance.remaining_days}일` : "-"}</b>
-                          </div>
-                          <div className={styles.dockMetric}>
-                            <span>요청</span>
-                            <b>{selectedEmployeeRequests.length}건</b>
-                          </div>
-                          <div className={styles.dockMetric}>
-                            <span>자료</span>
-                            <b>{selectedEmployeeDocs.length}건</b>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className={styles.dockGroup}>
-                        <strong>문서 / 자료 보드</strong>
-                        <div className={styles.dockList}>
-                          {selectedEmployeeContracts.map((contract) => (
-                            <div key={contract.id} className={styles.dockListItem}>
-                              <span>{contract.title}</span>
-                              <b>{contractStatusLabel(contract.status)}</b>
-                            </div>
-                          ))}
-                          {selectedEmployeeDocs.map((document) => (
-                            <div key={document.id} className={styles.dockListItem}>
-                              <span>{document.title}</span>
-                              <b>{document.tags.join(", ") || document.category}</b>
-                            </div>
-                          ))}
-                          {!selectedEmployeeContracts.length && !selectedEmployeeDocs.length ? (
-                            <p className={styles.emptyState}>연결된 문서가 없습니다.</p>
-                          ) : null}
-                        </div>
-                      </div>
-
-                      <div className={styles.dockGroup}>
-                        <strong>실무 진행 항목</strong>
-                        <div className={styles.dockList}>
-                          {selectedEmployeeTasks.map((task) => (
-                            <div key={task.id} className={styles.dockListItem}>
-                              <span>{task.title}</span>
-                              <b>{task.status}</b>
-                            </div>
-                          ))}
-                          {!selectedEmployeeTasks.length ? <p className={styles.emptyState}>열려 있는 노무 작업이 없습니다.</p> : null}
-                        </div>
-                      </div>
-
-                      <div className={styles.dockGroup}>
-                        <strong>이슈 / 요청</strong>
-                        <div className={styles.dockList}>
-                          {selectedEmployeeIssues.map((issue) => (
-                            <div key={issue.id} className={styles.dockAlertItem}>
-                              <span>{issue.title}</span>
-                              <b>{issue.severity}</b>
-                            </div>
-                          ))}
-                          {selectedEmployeeRequests.map((request) => (
-                            <div key={request.id} className={styles.dockListItem}>
-                              <span>{request.title}</span>
-                              <b>{request.status}</b>
-                            </div>
-                          ))}
-                          {!selectedEmployeeIssues.length && !selectedEmployeeRequests.length ? (
-                            <p className={styles.emptyState}>등록된 이슈와 요청이 없습니다.</p>
-                          ) : null}
-                        </div>
-                      </div>
-                    </>
-                  ) : (
-                    <p className={styles.emptyState}>직원을 선택하면 계약서와 노무 자료가 오른쪽에 표시됩니다.</p>
-                  )}
-                </aside>
-              </div>
-            ) : (
-              <section className={styles.surfaceCard}>
-                <p className={styles.emptyState}>
-                  아직 인사노무 세부 데이터가 연결되지 않은 고객사입니다. 회사 목록은 유지되고, 직원 데이터가
-                  들어오면 같은 형식으로 바로 확장됩니다.
-                </p>
-              </section>
-            )}
-          </div>
+          </section>
         </section>
       ) : (
         <section className={styles.boardShell}>
@@ -1024,6 +1132,27 @@ function formatDate(value: string) {
   return value.replaceAll("-", ".");
 }
 
+function contractPeriodLabel(
+  employee: { hire_date: string; employment_status: string },
+  contractTitle?: string,
+) {
+  if (contractTitle?.includes("정규직")) {
+    return "기간의 정함 없음";
+  }
+
+  const start = employee.hire_date;
+  const startDate = new Date(`${start}T00:00:00`);
+  const endDate = new Date(startDate);
+  endDate.setFullYear(endDate.getFullYear() + 1);
+  endDate.setDate(endDate.getDate() - 1);
+
+  if (employee.employment_status !== "active") {
+    return `${formatDate(start)} ~ 종료`;
+  }
+
+  return `${formatDate(start)} ~ ${formatDate(endDate.toISOString().slice(0, 10))}`;
+}
+
 function contractStatusLabel(status: string) {
   switch (status) {
     case "draft":
@@ -1039,6 +1168,65 @@ function contractStatusLabel(status: string) {
     default:
       return status;
   }
+}
+
+function requestStatusLabel(status: string) {
+  switch (status) {
+    case "received":
+      return "접수";
+    case "in_progress":
+      return "진행 중";
+    case "waiting_client":
+      return "고객 확인";
+    case "done":
+      return "완료";
+    default:
+      return status;
+  }
+}
+
+function requestTypeLabel(type: string) {
+  switch (type) {
+    case "hire":
+      return "신규 채용";
+    case "pay_change":
+      return "급여 변경";
+    case "file_request":
+      return "자료 요청";
+    default:
+      return type;
+  }
+}
+
+function payrollPreparationLabel(hasPayrollDoc: boolean, hasClientPendingRequest: boolean, hireDate: string) {
+  if (hasPayrollDoc) {
+    return { title: "정리 완료", detail: "급여명세서와 급여대장 생성 완료" };
+  }
+  if (hasClientPendingRequest) {
+    return { title: "자료 대기", detail: "고객사 급여 자료 확인 후 생성" };
+  }
+
+  const joinedAt = new Date(`${hireDate}T00:00:00`);
+  const recentJoin = Date.now() - joinedAt.getTime() < 1000 * 60 * 60 * 24 * 45;
+  if (recentJoin) {
+    return { title: "신규 반영", detail: "입사자 급여 기준 반영 예정" };
+  }
+
+  return { title: "생성 예정", detail: "급여일 전 최종 검토 후 발행" };
+}
+
+function payrollPacketLabel(hasPayrollDoc: boolean) {
+  return hasPayrollDoc ? "고객사 다운로드 가능" : "검토 후 고객사 전송";
+}
+
+function capitalizeTone(value: string) {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function shortRequestSummary(type: string, status: string) {
+  const typeLabel = requestTypeLabel(type);
+  const statusLabel = requestStatusLabel(status);
+  return `${statusLabel} · ${typeLabel}`;
 }
 
 function ClientView(props: {

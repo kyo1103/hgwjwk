@@ -18,6 +18,15 @@ export default async function PayrollPage({ params }: { params: { tenantSlug: st
 
   const activeCount = employees.filter((e) => e.status === "active").length;
   const inactiveCount = employees.filter((e) => e.status === "inactive").length;
+  const payrollDownloads = employees
+    .filter((employee) => employee.status === "active")
+    .map((employee) => ({
+      id: employee.id,
+      name: employee.name,
+      contractLabel: employee.joinedAt >= "2026-01-01" ? "신규 입사 자동작성본" : "기존 계약서",
+      payslipLabel: "이번 달 급여명세서",
+      payrollMasterLabel: "이번 달 급여대장 묶음",
+    }));
 
   return (
     <PortalShell tenant={tenant} active="payroll">
@@ -60,6 +69,81 @@ export default async function PayrollPage({ params }: { params: { tenantSlug: st
               <div key={setting.label} className="card" style={{ padding: "16px 18px" }}>
                 <div style={{ fontSize: "0.75rem", color: "var(--text-3)", fontWeight: 600, marginBottom: 6 }}>{setting.label}</div>
                 <strong style={{ fontSize: "0.95rem", color: "var(--text-1)" }}>{setting.value}</strong>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="panel" style={{ marginBottom: 24 }}>
+        <div className="panel-header">
+          <h2>다운로드 센터</h2>
+          <Badge tone="ok">고객사는 다운로드만</Badge>
+        </div>
+        <div className="panel-body">
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>근로자</th>
+                  <th>근로계약서</th>
+                  <th>급여명세서</th>
+                  <th>급여대장</th>
+                  <th>비고</th>
+                </tr>
+              </thead>
+              <tbody>
+                {payrollDownloads.map((item) => (
+                  <tr key={item.id}>
+                    <td>
+                      <strong>{item.name}</strong>
+                    </td>
+                    <td>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between" }}>
+                        <span>{item.contractLabel}</span>
+                        <button className="btn outline" style={{ padding: "4px 10px", fontSize: "0.76rem" }}>다운로드</button>
+                      </div>
+                    </td>
+                    <td>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between" }}>
+                        <span>{item.payslipLabel}</span>
+                        <button className="btn outline" style={{ padding: "4px 10px", fontSize: "0.76rem" }}>다운로드</button>
+                      </div>
+                    </td>
+                    <td>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between" }}>
+                        <span>{item.payrollMasterLabel}</span>
+                        <button className="btn outline" style={{ padding: "4px 10px", fontSize: "0.76rem" }}>다운로드</button>
+                      </div>
+                    </td>
+                    <td style={{ color: "var(--text-3)", fontSize: "0.82rem" }}>관리자 검토 후 자동 전달된 문서</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section className="panel" style={{ marginBottom: 24 }}>
+        <div className="panel-header">
+          <h2>고객사 진행 흐름</h2>
+          <Badge tone="ok">자료 업로드 → 다운로드</Badge>
+        </div>
+        <div className="panel-body">
+          <div className="grid grid-4" style={{ gap: 12 }}>
+            {[
+              { title: "신규 채용 등록", body: "입사자 정보와 기본 자료를 입력하면 계약서 초안이 자동 준비됩니다." },
+              { title: "급여 자료 회신", body: "변동 사항과 급여 자료를 회신하면 명세서와 급여대장 정리가 시작됩니다." },
+              { title: "관리자 검토", body: "노무·급여 담당자가 계약과 급여 자료를 확인하고 전송합니다." },
+              { title: "문서 다운로드", body: "고객사는 계약서, 급여명세서, 급여대장을 바로 다운로드합니다." },
+            ].map((step, index) => (
+              <div key={step.title} className="card" style={{ padding: "18px 18px 16px" }}>
+                <div style={{ fontSize: "0.72rem", color: "var(--brand-mid)", fontWeight: 700, marginBottom: 8 }}>
+                  STEP {index + 1}
+                </div>
+                <strong style={{ display: "block", fontSize: "0.92rem", color: "var(--text-1)", marginBottom: 8 }}>{step.title}</strong>
+                <p style={{ margin: 0, fontSize: "0.8rem", color: "var(--text-2)", lineHeight: 1.6 }}>{step.body}</p>
               </div>
             ))}
           </div>
