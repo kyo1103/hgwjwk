@@ -232,48 +232,70 @@ export default function WorkspaceDashboard({ session }: { session: WorkspaceSess
   return (
     <div className={styles.root}>
       <div className={styles.container}>
-        <header className={styles.topbar}>
-          <div>
-            <span className={styles.sectionEyebrow}>Unified Workspace</span>
-            <h1 className={styles.topbarTitle}>
-              {session.scope === "admin" ? "관리자 운영 워크스페이스" : "고객사 전용 워크스페이스"}
-            </h1>
-            <p className={styles.topbarText}>
-              같은 루트 주소에서 로그인했고, 현재 계정 권한에 맞는 화면만 노출되고 있습니다.
-            </p>
-          </div>
-
-          <div className={styles.topbarActions}>
-            <div className={styles.userBadge}>
-              <span>{session.roleLabel}</span>
-              <strong>{session.name}</strong>
-            </div>
-            {session.scope === "admin" ? (
-              <>
-                <Link href="/erp/control-tower" className={styles.linkButton}>
-                  신고 관제탑
-                </Link>
-                <Link href="/erp" className={styles.linkButton}>
-                  전체 ERP
-                </Link>
-                <Link href="/erp/kakao" className={styles.linkButton}>
-                  카카오 센터
-                </Link>
-              </>
-            ) : session.tenantSlug ? (
-              <Link href={`/portal/${session.tenantSlug}/dashboard`} className={styles.linkButton}>
-                고객 포털 상세
-              </Link>
-            ) : null}
-            <button
-              type="button"
-              className={styles.secondaryButton}
-              disabled={loggingOut}
-              onClick={handleLogout}
-            >
-              {loggingOut ? "로그아웃 중..." : "로그아웃"}
-            </button>
-          </div>
+        <header className={session.scope === "admin" ? styles.adminHeader : styles.topbar}>
+          {session.scope === "admin" ? (
+            <>
+              <div className={styles.adminBrand}>
+                <span className={styles.adminBrandEyebrow}>Unified Workspace</span>
+                <strong className={styles.adminBrandName}>관리자 운영 워크스페이스</strong>
+              </div>
+              <nav className={styles.adminTabNav}>
+                <button
+                  type="button"
+                  className={`${styles.adminTabBtn} ${adminTab === "labor" ? styles.adminTabBtnActive : ""}`}
+                  onClick={() => setAdminTab("labor")}
+                >
+                  인사노무
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.adminTabBtn} ${adminTab === "tax" ? styles.adminTabBtnActive : ""}`}
+                  onClick={() => setAdminTab("tax")}
+                >
+                  세무회계
+                </button>
+              </nav>
+              <div className={styles.adminHeaderActions}>
+                <div className={styles.adminUserBadge}>
+                  <span>{session.roleLabel}</span>
+                  <strong>{session.name}</strong>
+                </div>
+                <button
+                  type="button"
+                  className={styles.adminLogoutButton}
+                  disabled={loggingOut}
+                  onClick={handleLogout}
+                >
+                  {loggingOut ? "로그아웃 중..." : "로그아웃"}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div>
+                <h1 className={styles.topbarTitle}>고객사 전용 워크스페이스</h1>
+              </div>
+              <div className={styles.topbarActions}>
+                <div className={styles.userBadge}>
+                  <span>{session.roleLabel}</span>
+                  <strong>{session.name}</strong>
+                </div>
+                {session.tenantSlug ? (
+                  <Link href={`/portal/${session.tenantSlug}/dashboard`} className={styles.linkButton}>
+                    고객 포털 상세
+                  </Link>
+                ) : null}
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  disabled={loggingOut}
+                  onClick={handleLogout}
+                >
+                  {loggingOut ? "로그아웃 중..." : "로그아웃"}
+                </button>
+              </div>
+            </>
+          )}
         </header>
 
         {error ? <FlashBanner message={{ tone: "error", text: error }} /> : null}
@@ -444,11 +466,51 @@ function AdminView(props: {
   setAdminTab: (tab: "labor" | "tax") => void;
 }) {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
-  const selectedClient = props.clients.find((client) => client.id === props.currentClientId) ?? props.clients[0];
-  const tenant = tenants.find((item) => item.name === selectedClient?.name);
-  const tenantEmployees = (tenant ? employees.filter((employee) => employee.tenant_id === tenant.id) : []).sort((a, b) =>
-    b.hire_date.localeCompare(a.hire_date),
-  );
+  const [companyQuery, setCompanyQuery] = useState("");
+  const [employeeQuery, setEmployeeQuery] = useState("");
+  const companyRecords = props.clients.map((client) => {
+    const tenant = tenants.find((item) => item.name === client.name);
+    const companyEmployees = tenant ? employees.filter((employee) => employee.tenant_id === tenant.id) : [];
+    const companyIssues = tenant ? laborIssues.filter((issue) => issue.tenant_id === tenant.id) : [];
+    const companyTasks = tenant
+      ? workTasks.filter((task) => task.tenant_id === tenant.id && (task.domain === "노무" || task.domain === "공통"))
+      : [];
+
+    return {
+      client,
+      tenant,
+      employeeCount: companyEmployees.length,
+      issueCount: companyIssues.length,
+      openTaskCount: companyTasks.filter((task) => task.status !== "done").length,
+    };
+  });
+  const filteredCompanyRecords = companyRecords.filter(({ client }) => {
+    const keyword = companyQuery.trim().toLowerCase();
+    if (!keyword) return true;
+    return client.name.toLowerCase().includes(keyword) || client.bizNo.includes(keyword);
+  });
+  const selectedCompanyRecord =
+    filteredCompanyRecords.find(({ client }) => client.id === props.currentClientId) ??
+    companyRecords.find(({ client }) => client.id === props.currentClientId) ??
+    filteredCompanyRecords[0] ??
+    companyRecords[0];
+  const selectedClient = selectedCompanyRecord?.client;
+  const tenant = selectedCompanyRecord?.tenant;
+  const tenantEmployees = (tenant ? employees.filter((employee) => employee.tenant_id === tenant.id) : [])
+    .filter((employee) => {
+      const keyword = employeeQuery.trim().toLowerCase();
+      if (!keyword) return true;
+      return [
+        employee.full_name,
+        employee.department ?? "",
+        employee.job_title ?? "",
+        employee.phone ?? "",
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(keyword);
+    })
+    .sort((a, b) => a.hire_date.localeCompare(b.hire_date));
   const selectedEmployee =
     tenantEmployees.find((employee) => employee.id === selectedEmployeeId) ?? tenantEmployees[0];
   const selectedEmployeeDocs = selectedEmployee
@@ -478,6 +540,17 @@ function AdminView(props: {
   const tenantMonthlyReports = tenant ? monthlyReports.filter((report) => report.tenant_id === tenant.id) : [];
 
   useEffect(() => {
+    if (!filteredCompanyRecords.length) {
+      return;
+    }
+
+    const exists = filteredCompanyRecords.some(({ client }) => client.id === props.currentClientId);
+    if (!exists) {
+      props.setCurrentClientId(filteredCompanyRecords[0].client.id);
+    }
+  }, [filteredCompanyRecords, props, props.currentClientId]);
+
+  useEffect(() => {
     if (!tenantEmployees.length) {
       setSelectedEmployeeId("");
       return;
@@ -491,62 +564,63 @@ function AdminView(props: {
 
   return (
     <>
-      <section className={styles.operationsHero}>
+      <section className={styles.operationsSummaryBar}>
         <div>
-          <span className={styles.sectionEyebrow}>Operations Desk</span>
-          <h2 className={styles.heroStripTitle}>인사노무와 세무회계만 남긴 관리자 운영 워크스페이스입니다.</h2>
-          <p className={styles.heroStripText}>
-            고객사가 수백 개로 늘어나도 클릭형 카드보다 빠르게 훑을 수 있도록, 회사 목록과 직원 표를
-            노션형 데이터베이스처럼 한 화면에 배치했습니다.
-          </p>
+          <span className={styles.sectionEyebrow}>Admin Workspace</span>
+          <h2 className={styles.summaryBarTitle}>관리자 업무 현황</h2>
+          <p className={styles.summaryBarText}>업체, 근로자, 진행 업무를 한 화면에서 관리합니다.</p>
         </div>
-        <div className={styles.heroStripMeta}>
-          <div className={styles.heroMetric}>
-            <span>활성 고객사</span>
+        <div className={styles.summaryBarMetrics}>
+          <div className={styles.summaryBarMetric}>
+            <span>관리 업체</span>
             <strong>{props.stats?.totalClients ?? props.clients.length}</strong>
           </div>
-          <div className={styles.heroMetric}>
+          <div className={styles.summaryBarMetric}>
+            <span>확인 필요</span>
+            <strong>{props.stats?.needsAction ?? 0}</strong>
+          </div>
+          <div className={styles.summaryBarMetric}>
             <span>진행 중 작업</span>
             <strong>{props.runningJobsCount}</strong>
           </div>
         </div>
       </section>
 
-      <section className={styles.workspaceTabs}>
-        <button
-          type="button"
-          className={`${styles.workspaceTab} ${props.adminTab === "labor" ? styles.workspaceTabActive : ""}`}
-          onClick={() => props.setAdminTab("labor")}
-        >
-          인사노무
-        </button>
-        <button
-          type="button"
-          className={`${styles.workspaceTab} ${props.adminTab === "tax" ? styles.workspaceTabActive : ""}`}
-          onClick={() => props.setAdminTab("tax")}
-        >
-          세무회계
-        </button>
-      </section>
-
       {props.adminTab === "labor" ? (
         <section className={styles.boardShell}>
           <aside className={styles.companyRail}>
-            <div className={styles.boardHeader}>
+            <div className={styles.laborRailHeader}>
               <div>
-                <span className={styles.sectionEyebrow}>Companies</span>
-                <h2 className={styles.surfaceTitle}>관리 업체</h2>
+                <span className={styles.sectionEyebrow}>Labor Clients</span>
+                <h2 className={styles.surfaceTitle}>인사노무 운영 업체</h2>
+                <p className={styles.railDescription}>세로 스크롤로 훑고 클릭 즉시 근로자 시트를 확인합니다.</p>
               </div>
-              <span className={styles.counterPill}>{props.clients.length}개</span>
+              <div className={styles.counterPill}>{filteredCompanyRecords.length}개</div>
+            </div>
+
+            <label className={styles.railSearch}>
+              <span>업체 검색</span>
+              <input
+                type="text"
+                value={companyQuery}
+                onChange={(event) => setCompanyQuery(event.target.value)}
+                placeholder="업체명 또는 사업자번호"
+              />
+            </label>
+
+            <div className={styles.railMiniStats}>
+              <div className={styles.railMiniStat}>
+                <span>재직자</span>
+                <strong>{companyRecords.reduce((sum, item) => sum + item.employeeCount, 0)}명</strong>
+              </div>
+              <div className={styles.railMiniStat}>
+                <span>오픈 이슈</span>
+                <strong>{companyRecords.reduce((sum, item) => sum + item.issueCount, 0)}건</strong>
+              </div>
             </div>
 
             <div className={styles.companyRailList}>
-              {props.clients.map((client) => {
-                const clientTenant = tenants.find((item) => item.name === client.name);
-                const companyEmployees = clientTenant
-                  ? employees.filter((employee) => employee.tenant_id === clientTenant.id)
-                  : [];
-
+              {filteredCompanyRecords.map(({ client, employeeCount, issueCount, openTaskCount }) => {
                 return (
                   <button
                     key={client.id}
@@ -560,8 +634,15 @@ function AdminView(props: {
                         {channelSummary(client)}
                       </span>
                     </div>
-                    <span>{client.bizNo}</span>
-                    <span>직원 {companyEmployees.length}명</span>
+                    <div className={styles.companyRailMeta}>
+                      <span>{client.bizNo}</span>
+                      <span>담당 {client.manager}</span>
+                    </div>
+                    <div className={styles.companyRailStats}>
+                      <span>직원 {employeeCount}명</span>
+                      <span>열린 업무 {openTaskCount}건</span>
+                      <span className={issueCount ? styles.textDanger : ""}>이슈 {issueCount}건</span>
+                    </div>
                   </button>
                 );
               })}
@@ -569,13 +650,11 @@ function AdminView(props: {
           </aside>
 
           <div className={styles.boardMain}>
-            <section className={styles.boardOverview}>
+            <section className={`${styles.boardOverview} ${styles.laborOverview}`}>
               <div>
-                <span className={styles.sectionEyebrow}>Labor Database</span>
+                <span className={styles.sectionEyebrow}>Labor Dashboard</span>
                 <h2 className={styles.surfaceTitle}>{selectedClient?.name ?? "업체 선택"}</h2>
-                <p className={styles.boardDescription}>
-                  입사일 기준으로 인원 흐름을 보고, 오른쪽 상세 패널에서 계약서와 요청 이력을 바로 확인합니다.
-                </p>
+                <p className={styles.boardDescription}>선택한 업체의 인사노무 데이터를 즉시 확인합니다.</p>
               </div>
               <div className={styles.boardOverviewStats}>
                 <div className={styles.boardMetric}>
@@ -583,12 +662,16 @@ function AdminView(props: {
                   <strong>{selectedClient?.manager ?? "-"}</strong>
                 </div>
                 <div className={styles.boardMetric}>
-                  <span>노무 리스크</span>
-                  <strong>{tenant ? laborIssues.filter((issue) => issue.tenant_id === tenant.id).length : 0}</strong>
+                  <span>근로자 수</span>
+                  <strong>{selectedCompanyRecord?.employeeCount ?? 0}</strong>
                 </div>
                 <div className={styles.boardMetric}>
-                  <span>최근 작업</span>
-                  <strong>{tenant ? workTasks.filter((task) => task.tenant_id === tenant.id).length : 0}</strong>
+                  <span>오픈 이슈</span>
+                  <strong>{selectedCompanyRecord?.issueCount ?? 0}</strong>
+                </div>
+                <div className={styles.boardMetric}>
+                  <span>실행 중 업무</span>
+                  <strong>{selectedCompanyRecord?.openTaskCount ?? 0}</strong>
                 </div>
               </div>
             </section>
@@ -597,28 +680,62 @@ function AdminView(props: {
               <div className={styles.databaseLayout}>
                 <section className={styles.databaseSheet}>
                   <div className={styles.sheetToolbar}>
-                    <span className={styles.sheetLabel}>Employees</span>
-                    <span className={styles.sheetSubLabel}>입사일 최신순</span>
+                    <div className={styles.sheetHeaderCluster}>
+                      <span className={styles.sheetLabel}>근로자 운영 시트</span>
+                      <span className={styles.sheetSubLabel}>입사일 오름차순 · 계약/연차/급여/자료를 한 번에 확인</span>
+                    </div>
+                    <label className={styles.sheetSearch}>
+                      <input
+                        type="text"
+                        value={employeeQuery}
+                        onChange={(event) => setEmployeeQuery(event.target.value)}
+                        placeholder="이름, 부서, 직책 검색"
+                      />
+                    </label>
                   </div>
 
-                  <div className={styles.databaseTable}>
-                    <div className={styles.databaseHead}>
-                      <span>이름</span>
-                      <span>입사일</span>
-                      <span>부서</span>
-                      <span>직책</span>
-                      <span>계약서</span>
-                      <span>자료</span>
-                      <span>노무 진행</span>
-                      <span>리스크</span>
-                    </div>
+                  <div className={styles.databaseViewBar}>
+                    <button type="button" className={`${styles.databaseViewChip} ${styles.databaseViewChipActive}`}>전체 근로자</button>
+                    <button type="button" className={styles.databaseViewChip}>계약 갱신 필요</button>
+                    <button type="button" className={styles.databaseViewChip}>급여 확인 필요</button>
+                    <button type="button" className={styles.databaseViewChip}>자료 요청</button>
+                  </div>
 
-                    {tenantEmployees.map((employee) => {
+                  <div className={`${styles.sheetMetaBar} ${styles.laborMetaBar}`}>
+                    <span>총 {tenantEmployees.length}명</span>
+                    <span>사업자번호 {selectedClient?.bizNo}</span>
+                    <span>연차 기준 {tenant.leave_year_basis === "hire_date" ? "입사일 기준" : "회계연도 기준"}</span>
+                    <span>클릭 없이 회사 선택 즉시 목록 갱신</span>
+                  </div>
+
+                  <div className={styles.databaseViewport}>
+                    <div className={styles.databaseTable}>
+                      <div className={`${styles.databaseHead} ${styles.laborDatabaseHead}`}>
+                        <span>근로자</span>
+                        <span>근로계약서</span>
+                        <span>입사일자</span>
+                        <span>연차</span>
+                        <span>급여명세서</span>
+                        <span>각종 자료</span>
+                        <span>부서 / 직책</span>
+                        <span>급여/실무 상태</span>
+                      </div>
+
+                      {tenantEmployees.map((employee) => {
+                        const employeeLeave = leaveBalances.find(
+                          (leave) => leave.tenant_id === tenant.id && leave.employee_id === employee.id,
+                        );
                       const employeeContracts = contracts.filter(
                         (contract) => contract.tenant_id === tenant.id && contract.employee_id === employee.id,
                       );
                       const employeeDocs = laborDocuments.filter(
                         (document) => document.tenant_id === tenant.id && document.employee_id === employee.id,
+                      );
+                      const employeePayrollDocs = employeeDocs.filter(
+                        (document) => document.category === "payroll" || document.title.includes("급여"),
+                      );
+                      const employeeMiscDocs = employeeDocs.filter(
+                        (document) => document.category !== "contracts" && document.category !== "payroll",
                       );
                       const employeeLaborTasks = workTasks.filter(
                         (task) =>
@@ -631,29 +748,45 @@ function AdminView(props: {
                         (issue) => issue.tenant_id === tenant.id && issue.employee_id === employee.id,
                       );
 
-                      return (
-                        <button
-                          key={employee.id}
-                          type="button"
-                          className={`${styles.databaseRow} ${employee.id === selectedEmployee?.id ? styles.databaseRowActive : ""}`}
-                          onClick={() => setSelectedEmployeeId(employee.id)}
-                        >
-                          <span className={styles.cellPrimary}>
-                            {employee.full_name}
-                            <small>{employee.employment_status === "active" ? "재직" : employee.employment_status}</small>
-                          </span>
-                          <span>{formatDate(employee.hire_date)}</span>
-                          <span>{employee.department ?? "-"}</span>
-                          <span>{employee.job_title ?? "-"}</span>
-                          <span>{employeeContracts[0] ? contractStatusLabel(employeeContracts[0].status) : "미작성"}</span>
-                          <span>{employeeDocs.length}건</span>
-                          <span>{employeeLaborTasks.length ? `${employeeLaborTasks.length}건` : "없음"}</span>
-                          <span className={employeeIssues.length ? styles.textDanger : ""}>
-                            {employeeIssues.length ? `${employeeIssues.length}건` : "정상"}
-                          </span>
-                        </button>
-                      );
-                    })}
+                        return (
+                          <button
+                            key={employee.id}
+                            type="button"
+                            className={`${styles.databaseRow} ${employee.id === selectedEmployee?.id ? styles.databaseRowActive : ""}`}
+                            onClick={() => setSelectedEmployeeId(employee.id)}
+                          >
+                            <span className={styles.cellPrimary}>
+                              {employee.full_name}
+                              <small>{employee.employment_status === "active" ? "재직" : employee.employment_status}</small>
+                            </span>
+                            <span className={styles.cellStatus}>
+                              <b>{employeeContracts[0] ? contractStatusLabel(employeeContracts[0].status) : "미작성"}</b>
+                              <small>{employeeContracts[0]?.title ?? "근로계약서 등록 필요"}</small>
+                            </span>
+                            <span>{formatDate(employee.hire_date)}</span>
+                            <span>{employeeLeave ? `${employeeLeave.remaining_days}일` : "-"}</span>
+                            <span className={styles.cellStatus}>
+                              <b>{employeePayrollDocs.length ? `${employeePayrollDocs.length}건` : "미발행"}</b>
+                              <small>{employeePayrollDocs.length ? "명세서 보관 중" : "급여자료 확인 필요"}</small>
+                            </span>
+                            <span className={styles.cellStatus}>
+                              <b>{employeeMiscDocs.length ? `${employeeMiscDocs.length}건` : "-"}</b>
+                              <small>{employeeMiscDocs[0]?.title ?? "추가 자료 없음"}</small>
+                            </span>
+                            <span className={styles.cellStack}>
+                              <b>{employee.department ?? "-"}</b>
+                              <small>{employee.job_title ?? "직책 미지정"}</small>
+                            </span>
+                            <span className={styles.cellStatus}>
+                              <b>{employeeLaborTasks.length ? `${employeeLaborTasks.length}건 진행` : "정상"}</b>
+                              <small className={employeeIssues.length ? styles.textDanger : ""}>
+                                {employeeIssues.length ? `이슈 ${employeeIssues.length}건` : "리스크 없음"}
+                              </small>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </section>
 
@@ -668,7 +801,10 @@ function AdminView(props: {
                             {selectedEmployee.department ?? "부서 미지정"} · {selectedEmployee.job_title ?? "직책 미지정"}
                           </p>
                         </div>
-                        <span className={styles.counterPill}>{formatDate(selectedEmployee.hire_date)} 입사</span>
+                        <div className={styles.dockTitleMeta}>
+                          <span className={styles.counterPill}>{formatDate(selectedEmployee.hire_date)} 입사</span>
+                          <span className={styles.ghostMeta}>{selectedEmployee.phone ?? "연락처 미등록"}</span>
+                        </div>
                       </div>
 
                       <div className={styles.dockGroup}>
@@ -686,11 +822,15 @@ function AdminView(props: {
                             <span>요청</span>
                             <b>{selectedEmployeeRequests.length}건</b>
                           </div>
+                          <div className={styles.dockMetric}>
+                            <span>자료</span>
+                            <b>{selectedEmployeeDocs.length}건</b>
+                          </div>
                         </div>
                       </div>
 
                       <div className={styles.dockGroup}>
-                        <strong>근로계약/자료</strong>
+                        <strong>문서 / 자료 보드</strong>
                         <div className={styles.dockList}>
                           {selectedEmployeeContracts.map((contract) => (
                             <div key={contract.id} className={styles.dockListItem}>
@@ -711,7 +851,7 @@ function AdminView(props: {
                       </div>
 
                       <div className={styles.dockGroup}>
-                        <strong>노무 진행 항목</strong>
+                        <strong>실무 진행 항목</strong>
                         <div className={styles.dockList}>
                           {selectedEmployeeTasks.map((task) => (
                             <div key={task.id} className={styles.dockListItem}>

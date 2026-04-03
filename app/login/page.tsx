@@ -1,11 +1,73 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import styles from "./login.module.css";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [role, setRole] = useState("ceo");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [adminMode, setAdminMode] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      const target = event.target;
+      const isTypingTarget =
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        (target instanceof HTMLElement && target.isContentEditable);
+
+      if (isTypingTarget) {
+        return;
+      }
+
+      if (event.key.toLowerCase() === "c") {
+        setAdminMode((current) => !current);
+        setError("");
+        setEmail("");
+        setPassword("");
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setIsSubmitting(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          password,
+          allowAdmin: adminMode,
+        }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.message || "로그인 정보가 맞지 않습니다.");
+      }
+
+      router.push("/");
+      router.refresh();
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "로그인에 실패했습니다.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   return (
     <div className={styles.pageContainer}>
@@ -18,8 +80,8 @@ export default function LoginPage() {
 
         <div className={styles.textContent}>
           <h1 className={styles.mainTitle}>
-            <span className={styles.titleLine1}>세무사·노무사가</span>
-            <span className={styles.titleLine2}>직접 만든 <span className={styles.gradientText}>ERP</span></span>
+            <span className={styles.titleLine1}>세무사·노무사가 직접 만든</span>
+            <span className={styles.titleLine2}><span className={styles.gradientText}>ERP</span></span>
           </h1>
           <p className={styles.grayDesc}>
             복잡한 실무를 더 쉽게 관리할 수 있습니다.
@@ -60,66 +122,105 @@ export default function LoginPage() {
         <footer className={styles.footer}>
           <p>부산 동래구 미남로 148 (온천동) 6층 세무법인 가온택스 / 대표세무사: 허건우</p>
           <p>울산 남구 문수로 392번길 3 (신정동) 207호 신정노동법률사무소 / 대표노무사: 장원교</p>
-          <p className={styles.footerBottom}>Copyright © Labor&Tax Corporation. All rights reserved.</p>
+          <p className={styles.footerBottom}>
+            Copyright{" "}
+            <button
+              type="button"
+              className={styles.hiddenAdminTrigger}
+              onClick={() => {
+                setAdminMode((current) => !current);
+                setError("");
+                setEmail("");
+                setPassword("");
+              }}
+              aria-label="관리자 로그인 전환"
+            >
+              ©
+            </button>{" "}
+            Labor&Tax Corporation. All rights reserved.
+          </p>
         </footer>
       </div>
 
       {/* Right Section - Light Elevated Form Form */}
       <div className={styles.rightSection}>
         <div className={styles.loginBox}>
-          
-          <h2 className={styles.loginTitle}>고객사 로그인</h2>
-          <p className={styles.loginSubtitle}>이메일과 비밀번호를 입력해 주세요.</p>
+          <h2 className={styles.loginTitle}>{adminMode ? "관리자 로그인" : "고객사 로그인"}</h2>
+          <p className={styles.loginSubtitle}>
+            {adminMode ? "관리자 계정으로 로그인합니다." : "이메일과 비밀번호를 입력해 주세요."}
+          </p>
 
-          <div className={styles.roleToggle}>
-            <button 
-              className={`${styles.roleBtn} ${role === 'ceo' ? styles.activeRole : ''}`}
-              onClick={() => setRole('ceo')}
-            >
-              대표
+          {!adminMode ? (
+            <div className={styles.roleToggle}>
+              <button
+                type="button"
+                className={`${styles.roleBtn} ${role === "ceo" ? styles.activeRole : ""}`}
+                onClick={() => setRole("ceo")}
+              >
+                대표
+              </button>
+              <button
+                type="button"
+                className={`${styles.roleBtn} ${role === "hr" ? styles.activeRole : ""}`}
+                onClick={() => setRole("hr")}
+              >
+                인사담당자
+              </button>
+            </div>
+          ) : null}
+
+          <form onSubmit={handleSubmit}>
+            <div className={styles.inputWrapper}>
+              <label className={styles.inputLabel}>이메일 주소</label>
+              <input
+                type="email"
+                placeholder="name@company.com"
+                className={styles.inputField}
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+              />
+            </div>
+
+            <div className={styles.inputWrapper}>
+              <label className={styles.inputLabel}>비밀번호</label>
+              <input
+                type="password"
+                placeholder="비밀번호 입력"
+                className={styles.inputField}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+              />
+            </div>
+
+            <div className={styles.loginOptions}>
+              <label className={styles.checkboxContainer}>
+                <input type="checkbox" className={styles.checkboxItem} defaultChecked />
+                <span className={styles.checkboxLabel}>로그인 유지</span>
+              </label>
+              <label className={styles.checkboxContainer}>
+                <input type="checkbox" className={styles.checkboxItem} />
+                <span className={styles.checkboxLabel}>이메일 저장</span>
+              </label>
+            </div>
+
+            {error ? <div className={styles.errorMessage}>{error}</div> : null}
+
+            <div className={styles.securityNote}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+              허용된 사내 IP에서만 로그인할 수 있습니다
+            </div>
+
+            <button className={styles.submitBtn} disabled={isSubmitting}>
+              {isSubmitting ? "로그인 중..." : "로그인"}
             </button>
-            <button 
-              className={`${styles.roleBtn} ${role === 'hr' ? styles.activeRole : ''}`}
-              onClick={() => setRole('hr')}
-            >
-              인사담당자
-            </button>
-          </div>
-
-          <div className={styles.inputWrapper}>
-            <label className={styles.inputLabel}>이메일 주소</label>
-            <input type="email" placeholder="name@company.com" className={styles.inputField} />
-          </div>
-
-          <div className={styles.inputWrapper}>
-            <label className={styles.inputLabel}>비밀번호</label>
-            <input type="password" placeholder="비밀번호 입력" className={styles.inputField} />
-          </div>
-
-          <div className={styles.loginOptions}>
-            <label className={styles.checkboxContainer}>
-              <input type="checkbox" className={styles.checkboxItem} defaultChecked />
-              <span className={styles.checkboxLabel}>로그인 유지</span>
-            </label>
-            <label className={styles.checkboxContainer}>
-              <input type="checkbox" className={styles.checkboxItem} />
-              <span className={styles.checkboxLabel}>이메일 저장</span>
-            </label>
-          </div>
-
-          <div className={styles.securityNote}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-            </svg>
-            허용된 사내 IP에서만 로그인할 수 있습니다
-          </div>
-
-          <button className={styles.submitBtn}>로그인</button>
+          </form>
 
           <div className={styles.bottomLinks}>
             <Link href="#" className={styles.linkItem}>비밀번호 찾기</Link>
-            <span style={{color: '#E2E8F0'}}>|</span>
+            <span style={{color: "#E2E8F0"}}>|</span>
             <Link href="#" className={styles.linkItem}>이메일 찾기</Link>
           </div>
 

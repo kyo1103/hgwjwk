@@ -19,7 +19,11 @@
       "WebSearch",
       "WebFetch(domain:github.com)",
       "Bash(gh auth:*)",
-      "Bash(npx next:*)"
+      "Bash(npx next:*)",
+      "Bash(git config:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(git push:*)"
     ]
   }
 }

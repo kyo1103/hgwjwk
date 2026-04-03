@@ -116,6 +116,16 @@
   font-weight: 500;
 }
 
+.hiddenAdminTrigger {
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
 /* Proposal Button on Left (Light Theme) */
 .proposalBtn {
   display: inline-flex;
@@ -326,6 +336,22 @@
   cursor: pointer;
   margin-bottom: 24px;
   transition: background-color 0.2s ease, transform 0.1s;
+}
+
+.submitBtn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.errorMessage {
+  margin-top: 14px;
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  color: #B91C1C;
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 
 .submitBtn:hover {
