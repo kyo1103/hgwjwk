@@ -123,3 +123,28 @@
   margin: 0 auto;
   width: 100%;
 }
+
+/* =============================================
+   DARK MODE
+   ============================================= */
+:global([data-theme="dark"]) .shellWrapper {
+  background-color: #0f172a;
+}
+
+:global([data-theme="dark"]) .sidebar {
+  background-color: #1e293b;
+  border-right-color: #334155;
+}
+
+:global([data-theme="dark"]) .topBar {
+  background-color: #1e293b;
+  border-bottom-color: #334155;
+}
+
+:global([data-theme="dark"]) .navItem:hover {
+  background-color: #334155;
+}
+
+:global([data-theme="dark"]) .navItem.active {
+  background-color: rgba(0, 222, 103, 0.1);
+}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type ReactNode } from "react";
 import styles from "@/components/erp/wemembers.module.css";
+import ThemeToggle from "@/components/ThemeToggle";
 
 type NavEntry = {
   label: string;
@@ -134,6 +135,7 @@ export default function ERPShell({ children }: { children: ReactNode }) {
           <div className={styles.brandTitle}>{config.title}</div>
         </div>
         <div className={styles.topActions}>
+          <ThemeToggle />
           {config.actions.map((action) => (
             <button
               key={action.label}

@@ -52,6 +52,69 @@
 }
 
 /* =============================================
+   DARK MODE TOKENS
+   ============================================= */
+[data-theme="dark"] {
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --surface-2: #334155;
+  --border: #475569;
+  --border-2: #334155;
+
+  --text-1: #f1f5f9;
+  --text-2: #cbd5e1;
+  --text-3: #94a3b8;
+  --text-4: #64748b;
+  --text-inv: #0f172a;
+
+  --green-bg: rgba(16, 185, 129, 0.15);
+  --amber-bg: rgba(245, 158, 11, 0.15);
+  --red-bg: rgba(239, 68, 68, 0.15);
+  --blue-bg: rgba(59, 130, 246, 0.15);
+
+  --s1: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --s2: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+  --s3: 0 10px 15px -3px rgba(0, 0, 0, 0.35), 0 4px 6px -2px rgba(0, 0, 0, 0.15);
+  --s4: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] body {
+  color-scheme: dark;
+}
+
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] input:focus,
+[data-theme="dark"] select:focus,
+[data-theme="dark"] textarea:focus {
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
+}
+
+[data-theme="dark"] .btn {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .btn:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="dark"] .hero-section {
+  background: linear-gradient(145deg, #020617 0%, #1e1b4b 55%, #312e81 100%);
+}
+
+[data-theme="dark"] .login-panel-left {
+  background: linear-gradient(155deg, #020617 0%, #1e1b4b 50%, #312e81 100%);
+}
+
+[data-theme="dark"] .file-card:hover {
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.2);
+}
+
+/* =============================================
    RESET
    ============================================= */
 *,

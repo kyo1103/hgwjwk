@@ -928,6 +928,247 @@
   margin-bottom: 14px;
 }
 
+/* =============================================
+   DARK MODE
+   ============================================= */
+:global([data-theme="dark"]) .shellRoot {
+  background: #0f1219;
+  color: #cbd5e1;
+}
+
+:global([data-theme="dark"]) .sidebar {
+  background: #1a1f2b;
+}
+
+:global([data-theme="dark"]) .userStrip {
+  background: #151a24;
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+:global([data-theme="dark"]) .mainLink {
+  color: #c8cdd5;
+  border-bottom-color: rgba(255, 255, 255, 0.05);
+}
+
+:global([data-theme="dark"]) .mainLinkActive {
+  background: #252d3a;
+  color: #f1f5f9;
+}
+
+:global([data-theme="dark"]) .groupHeader {
+  color: #c8cdd5;
+  border-bottom-color: rgba(255, 255, 255, 0.05);
+}
+
+:global([data-theme="dark"]) .groupHeaderActive {
+  background: #252d3a;
+  color: #f1f5f9;
+}
+
+:global([data-theme="dark"]) .childLink {
+  color: #94a3b8;
+}
+
+:global([data-theme="dark"]) .childLinkActive {
+  color: #f1f5f9;
+}
+
+:global([data-theme="dark"]) .contentArea {
+  background: #111827;
+}
+
+:global([data-theme="dark"]) .pageSurface {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+:global([data-theme="dark"]) .pageTitle {
+  color: #f1f5f9;
+}
+
+:global([data-theme="dark"]) .pageMeta {
+  color: #94a3b8;
+}
+
+:global([data-theme="dark"]) .searchBox {
+  background: #1e293b;
+  border-color: #475569;
+}
+
+:global([data-theme="dark"]) .searchInput {
+  color: #e2e8f0;
+}
+
+:global([data-theme="dark"]) .searchTrigger {
+  background: #334155;
+  border-left-color: #475569;
+  color: #94a3b8;
+}
+
+:global([data-theme="dark"]) .smallButton {
+  background: #1e293b;
+  border-color: #475569;
+  color: #cbd5e1;
+}
+
+:global([data-theme="dark"]) .primaryButton {
+  background: #4d6fd0;
+  border-color: #5e7fc4;
+  color: #ffffff;
+}
+
+:global([data-theme="dark"]) .excelButton {
+  background: #1a2e1c;
+  color: #6ee77a;
+}
+
+:global([data-theme="dark"]) .roundedTab {
+  background: #334155;
+  color: #94a3b8;
+}
+
+:global([data-theme="dark"]) .roundedTabActive {
+  background: #3b5cc0;
+  color: #ffffff;
+}
+
+:global([data-theme="dark"]) .tableShell {
+  border-color: #475569;
+  background: #1e293b;
+}
+
+:global([data-theme="dark"]) .denseTable thead th {
+  background: #334155;
+  border-right-color: #475569;
+  border-bottom-color: #475569;
+}
+
+:global([data-theme="dark"]) .denseTable tbody td {
+  background: #1e293b;
+  border-right-color: #334155;
+  border-bottom-color: #334155;
+  color: #cbd5e1;
+}
+
+:global([data-theme="dark"]) .denseTable tbody tr:nth-child(even) td {
+  background: #243044;
+}
+
+:global([data-theme="dark"]) .denseTable tbody tr:hover td {
+  background: #2a3a52;
+}
+
+:global([data-theme="dark"]) .denseTable tfoot td {
+  background: #334155;
+  border-right-color: #475569;
+}
+
+:global([data-theme="dark"]) .checkboxItem {
+  color: #94a3b8;
+}
+
+:global([data-theme="dark"]) .inlineFilter {
+  color: #cbd5e1;
+}
+
+:global([data-theme="dark"]) .inlineSelect {
+  background: #1e293b;
+  border-color: #475569;
+  color: #cbd5e1;
+}
+
+:global([data-theme="dark"]) .stepAll {
+  background: #1e293b;
+  border-color: #5f7dc3;
+  color: #7da0e8;
+}
+
+:global([data-theme="dark"]) .stepAllActive {
+  background: #3257b0;
+  color: #ffffff;
+}
+
+:global([data-theme="dark"]) .detailButton {
+  background: #1e293b;
+  border-color: #475569;
+  color: #cbd5e1;
+}
+
+:global([data-theme="dark"]) .rowsSelect {
+  background: #1e293b;
+  border-color: #475569;
+  color: #cbd5e1;
+}
+
+:global([data-theme="dark"]) .pageArrow {
+  background: #1e293b;
+  border-color: #475569;
+  color: #94a3b8;
+}
+
+:global([data-theme="dark"]) .pageNumber {
+  color: #94a3b8;
+}
+
+:global([data-theme="dark"]) .noteText {
+  color: #64748b;
+}
+
+:global([data-theme="dark"]) .contextMenu {
+  background: #1e293b;
+  border-color: #475569;
+}
+
+:global([data-theme="dark"]) .contextMenu button {
+  background: #1e293b;
+  color: #cbd5e1;
+  border-bottom-color: #334155;
+}
+
+:global([data-theme="dark"]) .modalCard {
+  background: #1e293b;
+  border-color: #475569;
+}
+
+:global([data-theme="dark"]) .modalHeader {
+  background: #334155;
+}
+
+:global([data-theme="dark"]) .modalBody {
+  background: #1e293b;
+}
+
+:global([data-theme="dark"]) .modalSectionTitle {
+  color: #e2e8f0;
+}
+
+:global([data-theme="dark"]) .modalOptionList {
+  border-top-color: #334155;
+}
+
+:global([data-theme="dark"]) .modalOptionRow {
+  border-bottom-color: #334155;
+  color: #cbd5e1;
+}
+
+:global([data-theme="dark"]) .promoCard {
+  background: linear-gradient(180deg, #1e3a5f 0%, #1a3356 100%);
+}
+
+:global([data-theme="dark"]) .miniAction {
+  background: #1e293b;
+  border-color: #475569;
+  color: #94a3b8;
+}
+
+:global([data-theme="dark"]) .subHeading {
+  color: #7da0e8;
+}
+
+:global([data-theme="dark"]) .emptyState {
+  color: #64748b;
+}
+
 @media (max-width: 1180px) {
   .shellBody {
     grid-template-columns: 1fr;

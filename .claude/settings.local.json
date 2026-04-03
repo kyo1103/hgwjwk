@@ -18,7 +18,8 @@
       "Bash(cd \"C:\\\\Users\\\\user\\\\Desktop\\\\노무세무ERP_허장\" && npx next build 2>&1 | grep -v \"^$\" | tail -40)",
       "WebSearch",
       "WebFetch(domain:github.com)",
-      "Bash(gh auth:*)"
+      "Bash(gh auth:*)",
+      "Bash(npx next:*)"
     ]
   }
 }

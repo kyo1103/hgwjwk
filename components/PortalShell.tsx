@@ -15,6 +15,7 @@ import {
   Users,
 } from "lucide-react";
 import styles from "@/components/PortalShell.module.css";
+import ThemeToggle from "@/components/ThemeToggle";
 import { memberships } from "@/lib/data";
 import { getPortalContext } from "@/lib/portal-context";
 import { portalHiddenLabels, portalPrimaryTabs, portalUtilityTabs } from "@/lib/portal-config";
@@ -132,6 +133,9 @@ export function PortalShell({ tenant, active, children }: Props) {
           </div>
 
           <div className={styles.topbarMeta}>
+            <div className={styles.metaCard} style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <ThemeToggle />
+            </div>
             <div className={styles.metaCard}>
               <span>열람자</span>
               <strong>{context.session.name}</strong>

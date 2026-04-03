@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Inbox, LayoutDashboard, FileText, Users, Activity } from "lucide-react";
 import styles from "./InternalShell.module.css";
+import ThemeToggle from "./ThemeToggle";
 
 type Props = {
   active: string;
@@ -44,8 +45,9 @@ export function InternalShell({ active, children }: Props) {
 
       {/* Main Content Area */}
       <div className={styles.mainContent}>
-        <header className={styles.topBar}>
+        <header className={styles.topBar} style={{ justifyContent: "space-between" }}>
           <h1 className={styles.pageTitle}>{active}</h1>
+          <ThemeToggle />
         </header>
         <main className={styles.contentWrapper}>
           {children}
