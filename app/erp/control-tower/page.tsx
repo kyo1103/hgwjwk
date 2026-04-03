@@ -2,112 +2,15 @@
 
 import { useState, useRef, useCallback } from "react";
 import Link from "next/link";
-
-/* ─────────────────────────── 타입 정의 ─────────────────────────── */
-
-type StepStatus = "done" | "in-progress" | "pending";
-
-interface ReportStep {
-  label: string;
-  status: StepStatus;
-  hasButton: boolean;
-  buttonLabel?: string;
-}
-
-interface TaxReport {
-  taxType: string;
-  steps: ReportStep[];
-}
-
-interface MonthData {
-  month: number;
-  reports: TaxReport[];
-}
-
-type IndustryCategory = "제조업" | "병의원" | "수출업";
-
-interface Company {
-  id: string;
-  name: string;
-  shortName: string;
-  bizNo: string;
-  manager: string;
-  category: IndustryCategory;
-  months: MonthData[];
-}
-
-const INDUSTRY_META: Record<IndustryCategory, { icon: string; color: string }> = {
-  "제조업": { icon: "🏭", color: "#3b82f6" },
-  "병의원": { icon: "🏥", color: "#ef4444" },
-  "수출업": { icon: "🚢", color: "#8b5cf6" },
-};
-
-/* ─────────────────────────── 7단계 템플릿 ─────────────────────────── */
-
-function makeSteps(doneCount: number, inProgressIndex?: number): ReportStep[] {
-  const template: { label: string; hasButton: boolean; buttonLabel?: string }[] = [
-    { label: "API 자동수집", hasButton: true, buttonLabel: "수집" },
-    { label: "수기자료 요청", hasButton: true, buttonLabel: "발송" },
-    { label: "자료 수집 완료", hasButton: false },
-    { label: "세무사랑 서식 변환", hasButton: true, buttonLabel: "변환" },
-    { label: "세무사랑 장부작업", hasButton: false },
-    { label: "홈택스 신고 완료", hasButton: false },
-    { label: "납부서·보고서 전송", hasButton: true, buttonLabel: "전송" },
-  ];
-  return template.map((t, idx) => {
-    let status: StepStatus = "pending";
-    if (idx < doneCount) status = "done";
-    else if (idx === (inProgressIndex ?? doneCount)) status = "in-progress";
-    return { ...t, status };
-  });
-}
-
-/* ─────────────────────────── 목업 데이터 (5업체 × 3개월) ─────────────────────────── */
-
-const MONTHS = [1, 2, 3];
-
-const MOCK_COMPANIES: Company[] = [
-  {
-    id: "c1", name: "유니온테크 주식회사", shortName: "유니온테크", bizNo: "123-45-12345", manager: "김노무", category: "제조업",
-    months: [
-      { month: 1, reports: [{ taxType: "원천세", steps: makeSteps(5, 5) }, { taxType: "부가세", steps: makeSteps(3, 3) }] },
-      { month: 2, reports: [{ taxType: "원천세", steps: makeSteps(2, 2) }] },
-      { month: 3, reports: [{ taxType: "원천세", steps: makeSteps(0, 0) }, { taxType: "법인세", steps: makeSteps(1, 1) }] },
-    ],
-  },
-  {
-    id: "c2", name: "주식회사 데이터솔루션", shortName: "데이터솔루션", bizNo: "234-56-78901", manager: "이세무", category: "수출업",
-    months: [
-      { month: 1, reports: [{ taxType: "원천세", steps: makeSteps(7) }] },
-      { month: 2, reports: [{ taxType: "원천세", steps: makeSteps(4, 4) }, { taxType: "부가세", steps: makeSteps(1, 1) }] },
-      { month: 3, reports: [{ taxType: "원천세", steps: makeSteps(0, 0) }] },
-    ],
-  },
-  {
-    id: "c3", name: "코스모스 카페", shortName: "코스모스카페", bizNo: "345-67-89012", manager: "박대리", category: "병의원",
-    months: [
-      { month: 1, reports: [{ taxType: "원천세", steps: makeSteps(6, 6) }] },
-      { month: 2, reports: [{ taxType: "원천세", steps: makeSteps(3, 3) }] },
-      { month: 3, reports: [{ taxType: "원천세", steps: makeSteps(1, 1) }, { taxType: "종합소득세", steps: makeSteps(0, 0) }] },
-    ],
-  },
-  {
-    id: "c4", name: "에이스 건설", shortName: "에이스건설", bizNo: "456-78-90123", manager: "최주임", category: "제조업",
-    months: [
-      { month: 1, reports: [{ taxType: "원천세", steps: makeSteps(7) }, { taxType: "부가세", steps: makeSteps(7) }] },
-      { month: 2, reports: [{ taxType: "원천세", steps: makeSteps(5, 5) }] },
-      { month: 3, reports: [{ taxType: "원천세", steps: makeSteps(3, 3) }] },
-    ],
-  },
-  {
-    id: "c5", name: "스타트업 홀딩스", shortName: "스타트업홀딩스", bizNo: "567-89-01234", manager: "정과장", category: "수출업",
-    months: [
-      { month: 1, reports: [{ taxType: "원천세", steps: makeSteps(4, 4) }] },
-      { month: 2, reports: [{ taxType: "원천세", steps: makeSteps(1, 1) }, { taxType: "부가세", steps: makeSteps(0, 0) }] },
-      { month: 3, reports: [{ taxType: "원천세", steps: makeSteps(0, 0) }, { taxType: "법인세", steps: makeSteps(2, 2) }] },
-    ],
-  },
-];
+import {
+  type StepStatus,
+  type ReportStep,
+  type TaxReport,
+  type Company,
+  INDUSTRY_META,
+  MONTHS,
+  MOCK_COMPANIES,
+} from "@/lib/control-tower-data";
 
 /* ─────────────────────────── 색상 상수 ─────────────────────────── */
 
@@ -128,6 +31,7 @@ const TAX_COLORS: Record<string, { bg: string; text: string; border: string }> =
   "법인세": { bg: "#ede9fe", text: "#7c3aed", border: "#c4b5fd" },
   "종합소득세": { bg: "#fce7f3", text: "#db2777", border: "#f9a8d4" },
   "연말정산": { bg: "#d1fae5", text: "#059669", border: "#6ee7b7" },
+  "성실신고": { bg: "#ffedd5", text: "#ea580c", border: "#fdba74" },
 };
 
 /* ─────────────────────────── 서브 컴포넌트 ─────────────────────────── */
@@ -256,13 +160,6 @@ export default function ControlTowerPage() {
           animation: "fadeInDown 0.3s ease",
         }}>{toast}</div>
       )}
-
-      {/* Breadcrumb */}
-      <div style={{ marginBottom: 16, display: "flex", gap: 6, alignItems: "center", fontSize: "0.82rem", color: "#94a3b8" }}>
-        <Link href="/erp" style={{ color: "#94a3b8", textDecoration: "none" }}>대시보드</Link>
-        <span>/</span>
-        <span style={{ color: "#0f172a", fontWeight: 600 }}>신고 관제탑</span>
-      </div>
 
       {/* Header */}
       <div style={{ marginBottom: 20 }}>

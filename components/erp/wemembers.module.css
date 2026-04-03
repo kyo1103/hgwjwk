@@ -1,7 +1,9 @@
 .shellRoot {
   min-height: 100vh;
-  background: #e6e8ed;
+  background: #ffffff;
   color: #20242c;
+  display: flex;
+  flex-direction: column;
 }
 
 .topBar {
@@ -82,9 +84,43 @@
 }
 
 .shellBody {
-  display: grid;
-  grid-template-columns: 264px 1fr;
-  min-height: calc(100vh - 58px);
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.topTabs {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  padding: 0 40px;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  height: 54px;
+}
+
+.topTab {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  font-size: 15px;
+  font-weight: 600;
+  color: #64748b;
+  text-decoration: none;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s;
+  padding: 0 4px;
+  margin-bottom: -1px;
+}
+
+.topTab:hover {
+  color: #0f172a;
+}
+
+.topTabActive {
+  color: #2563eb;
+  border-bottom-color: #2563eb;
+  font-weight: 700;
 }
 
 .sidebar {
@@ -221,9 +257,10 @@
 }
 
 .contentArea {
-  background: #ebedf1;
-  padding: 18px;
+  background: #ffffff;
+  padding: 0px;
   overflow: auto;
+  flex: 1;
 }
 
 .pageSurface {
