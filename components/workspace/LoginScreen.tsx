@@ -2,15 +2,14 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import styles from "./workspace.module.css";
-import { workspaceDemoAccounts } from "@/lib/workspace-users";
-
+import styles from "./LoginScreen.module.css";
 export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [adminMode, setAdminMode] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -21,7 +20,7 @@ export default function LoginScreen() {
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, allowAdmin: adminMode }),
       });
 
       const payload = await response.json();
@@ -39,53 +38,65 @@ export default function LoginScreen() {
 
   return (
     <div className={styles.loginRoot}>
-      <div className={styles.splitCard}>
-        {/* Left Hand Side: Enterprise Branding & Marketing */}
-        <div className={styles.splitVisual}>
-          <div className={styles.splitBrand}>
-            <strong>가온텍스 × 신정 노무</strong>
-            <span>Hyper Workspace</span>
+      <div className={styles.shell}>
+        <section className={styles.splitVisual}>
+          <div className={styles.brandBar}>
+            <strong className={styles.brandName}>hgwjwk</strong>
+            <span className={styles.brandTag}>Tax & Labor Workspace</span>
           </div>
 
-          <h1 className={styles.heroHeadline}>
-            복잡한 기업 실무, <br />
-            <span>가장 완벽한 자동화.</span>
-          </h1>
-          <p className={styles.heroSubtext}>
-            세무와 노무 오퍼레이션을 하나의 통합된 환경에서 관리하세요. 최고의 보안과 타협 없는 완성도를 제공합니다.
-          </p>
-        </div>
-
-        {/* Right Hand Side: Admin Login Form */}
-        <div className={styles.splitLogin}>
-          <div className={styles.loginHeader}>
-            <h2 className={styles.loginTitle}>워크스페이스 접속</h2>
-            <p className={styles.loginSubtext}>
-              테스트 계정을 선택하거나 자격 증명을 입력하세요.
+          <div className={styles.heroCopy}>
+            <p className={styles.heroEyebrow}>세무사·노무사를 위한 스마트 업무 솔루션</p>
+            <h1 className={styles.heroHeadline}>
+              세무사·노무사가
+              <br />
+              직접 만든 ERP
+            </h1>
+            <p className={styles.heroSubtext}>
+              복잡한 실무를 더 쉽게 관리할 수 있습니다.
             </p>
           </div>
 
-          <div className={styles.accountList}>
-            {workspaceDemoAccounts.map((account) => (
+          <div className={styles.metricRow}>
+            <article className={styles.metricCard}>
+              <strong>세금 신고 관리</strong>
+              <span>고객사 서류와 신고 일정을 한 곳에서</span>
+            </article>
+            <article className={styles.metricCard}>
+              <strong>급여·노무 관리</strong>
+              <span>근태·급여 변경 내역을 한 눈에</span>
+            </article>
+          </div>
+        </section>
+
+        <section className={styles.splitLogin}>
+          <div className={styles.topTabs}>
+            <button type="button" className={styles.activeTab}>
+              {adminMode ? "고객사 로그인" : "로그인"}
+            </button>
+            <a className={styles.downloadTab} href="/hgwjwk-proposal.txt" download>
+              제안서 다운로드
+            </a>
+            {adminMode ? (
               <button
-                key={account.email}
                 type="button"
-                className={styles.accountButton}
+                className={styles.adminTab}
                 onClick={() => {
-                  setEmail(account.email);
-                  setPassword(account.password);
                   setError("");
+                  setEmail("");
+                  setPassword("");
                 }}
               >
-                <div className={styles.accountButtonLeft}>
-                  <strong>{account.roleLabel}</strong>
-                  <span>{account.name}</span>
-                </div>
-                <span className={styles.accountScope}>
-                  {account.scope === "admin" ? "최고 관리자" : "고객사"}
-                </span>
+                관리자 로그인
               </button>
-            ))}
+            ) : null}
+          </div>
+
+          <div className={styles.loginHeader}>
+            <h2 className={styles.loginTitle}>{adminMode ? "관리자 로그인" : "고객사 로그인"}</h2>
+            <p className={styles.loginSubtext}>
+              {adminMode ? "관리자 계정으로 로그인합니다." : "이메일과 비밀번호를 입력해 주세요."}
+            </p>
           </div>
 
           <form className={styles.loginForm} onSubmit={handleSubmit}>
@@ -106,7 +117,7 @@ export default function LoginScreen() {
                   type="password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
-                  placeholder="*********"
+                  placeholder="비밀번호 입력"
                 />
               </label>
             </div>
@@ -115,12 +126,54 @@ export default function LoginScreen() {
               <div className={styles.flashBanner}>{error}</div>
             ) : null}
 
+            <div className={styles.optionRow}>
+              <label className={styles.checkItem}>
+                <input type="checkbox" defaultChecked />
+                <span>로그인 유지</span>
+              </label>
+              <label className={styles.checkItem}>
+                <input type="checkbox" />
+                <span>이메일 저장</span>
+              </label>
+            </div>
+
             <button className={styles.primaryButton} type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "인증 중..." : "안전하게 계속하기"}
+              {isSubmitting ? "로그인 중..." : "로그인"}
             </button>
           </form>
-        </div>
+
+          <div className={styles.helperLinks}>
+            <button type="button">비밀번호 찾기</button>
+            <button type="button">이메일 찾기</button>
+          </div>
+        </section>
       </div>
+
+      <footer className={styles.footer}>
+        <p>
+          부산 동래구 미남로 148 (온천동) 6층 세무법인 가온택스 / 대표세무사: 허건우
+        </p>
+        <p>
+          울산 남구 문수로 392번길 3 (신정동) 207호 신정노동법률사무소 / 대표노무사: 장원교 /
+        </p>
+        <p className={styles.footerSpacer} />
+        <p>
+          <button
+            type="button"
+            className={styles.hiddenAdminTrigger}
+            onClick={() => {
+              setAdminMode((current) => !current);
+              setError("");
+              setEmail("");
+              setPassword("");
+            }}
+            aria-label="관리자 로그인 전환"
+          >
+            @
+          </button>{" "}
+          Copyright © Labor&amp;Tax Corporation. All right reserve
+        </p>
+      </footer>
     </div>
   );
 }

@@ -25,6 +25,10 @@ npm install
 npm run dev
 ```
 
+## 협업 규칙
+
+간단한 협업 규칙은 [docs/COLLABORATION.md](/Users/kyo/hgwjwk/docs/COLLABORATION.md)에 정리했습니다.
+
 데스크톱 브리지 에이전트는 별도 프로세스로 실행합니다.
 
 ```bash
