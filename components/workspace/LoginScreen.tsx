@@ -10,6 +10,7 @@ export default function LoginScreen() {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [adminMode, setAdminMode] = useState(false);
+  const [clientRole, setClientRole] = useState<"owner" | "hr">("owner");
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -99,6 +100,25 @@ export default function LoginScreen() {
             </p>
           </div>
 
+          {!adminMode ? (
+            <div className={styles.roleToggle}>
+              <button
+                type="button"
+                className={`${styles.roleButton} ${clientRole === "owner" ? styles.roleButtonActive : ""}`}
+                onClick={() => setClientRole("owner")}
+              >
+                대표
+              </button>
+              <button
+                type="button"
+                className={`${styles.roleButton} ${clientRole === "hr" ? styles.roleButtonActive : ""}`}
+                onClick={() => setClientRole("hr")}
+              >
+                인사담당자
+              </button>
+            </div>
+          ) : null}
+
           <form className={styles.loginForm} onSubmit={handleSubmit}>
             <div className={styles.fieldGrid}>
               <label className={styles.field}>
@@ -158,6 +178,7 @@ export default function LoginScreen() {
         </p>
         <p className={styles.footerSpacer} />
         <p>
+          Copyright{" "}
           <button
             type="button"
             className={styles.hiddenAdminTrigger}
@@ -169,9 +190,9 @@ export default function LoginScreen() {
             }}
             aria-label="관리자 로그인 전환"
           >
-            @
-          </button>{" "}
-          Copyright © Labor&amp;Tax Corporation. All right reserve
+            ©
+          </button>
+          {" "}Labor&amp;Tax Corporation. All right reserve
         </p>
       </footer>
     </div>

@@ -60,7 +60,7 @@ export default function LoginPage() {
         <footer className={styles.footer}>
           <p>부산 동래구 미남로 148 (온천동) 6층 세무법인 가온택스 / 대표세무사: 허건우</p>
           <p>울산 남구 문수로 392번길 3 (신정동) 207호 신정노동법률사무소 / 대표노무사: 장원교</p>
-          <p className={styles.footerBottom}>@ Copyright © Labor&Tax Corporation. All rights reserved.</p>
+          <p className={styles.footerBottom}>Copyright © Labor&Tax Corporation. All rights reserved.</p>
         </footer>
       </div>
 

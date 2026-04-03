@@ -8,6 +8,18 @@ import { useERPState } from "@/lib/use-erp-state";
 import type { ChannelKey, ERPClient, ERPDocument, ERPJob } from "@/lib/erp-types";
 import type { WorkspaceSession } from "@/lib/workspace-users";
 import {
+  contracts,
+  documents as laborDocuments,
+  employees,
+  laborIssues,
+  leaveBalances,
+  monthlyReports,
+  serviceRequests,
+  taxTasks,
+  tenants,
+  workTasks,
+} from "@/lib/data";
+import {
   CONNECTOR_LABELS,
   KAKAO_TEMPLATES,
   STATUS_LABELS,
@@ -31,6 +43,7 @@ export default function WorkspaceDashboard({ session }: { session: WorkspaceSess
   const router = useRouter();
   const { data, isLoading, error, refresh } = useERPState();
   const [selectedClientId, setSelectedClientId] = useState(session.clientId ?? "");
+  const [adminTab, setAdminTab] = useState<"labor" | "tax">("labor");
   const [jobFlash, setJobFlash] = useState<FlashMessage>(null);
   const [jobActionKey, setJobActionKey] = useState<string | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -280,6 +293,8 @@ export default function WorkspaceDashboard({ session }: { session: WorkspaceSess
             stats={data?.stats}
             runningJobsCount={runningJobs.length}
             onRun={handleCollection}
+            adminTab={adminTab}
+            setAdminTab={setAdminTab}
           />
         ) : (
           <ClientView
@@ -294,112 +309,112 @@ export default function WorkspaceDashboard({ session }: { session: WorkspaceSess
           />
         )}
 
-        <section className={styles.kakaoSection}>
-          <div className={styles.surfaceHeader}>
-            <div>
-              <span className={styles.sectionEyebrow}>Kakao</span>
-              <h2 className={styles.surfaceTitle}>
-                {session.scope === "admin" ? "카카오톡 바로 전송" : "카카오 안내 즉시 받기"}
-              </h2>
+        {session.scope === "client" ? (
+          <section className={styles.kakaoSection}>
+            <div className={styles.surfaceHeader}>
+              <div>
+                <span className={styles.sectionEyebrow}>Kakao</span>
+                <h2 className={styles.surfaceTitle}>카카오 안내 즉시 받기</h2>
+              </div>
+              <Link href="/erp/kakao" className={styles.linkButton}>
+                전체 메시지 센터
+              </Link>
             </div>
-            <Link href="/erp/kakao" className={styles.linkButton}>
-              전체 메시지 센터
-            </Link>
-          </div>
 
-          <div className={styles.kakaoGrid}>
-            <section className={styles.surfaceCard}>
-              <label className={styles.field}>
-                <span>수신 번호</span>
-                <input
-                  type="tel"
-                  value={kakaoPhone}
-                  onChange={(event) => setKakaoPhone(event.target.value)}
-                  placeholder="010-0000-0000"
-                />
-              </label>
+            <div className={styles.kakaoGrid}>
+              <section className={styles.surfaceCard}>
+                <label className={styles.field}>
+                  <span>수신 번호</span>
+                  <input
+                    type="tel"
+                    value={kakaoPhone}
+                    onChange={(event) => setKakaoPhone(event.target.value)}
+                    placeholder="010-0000-0000"
+                  />
+                </label>
 
-              <label className={styles.field}>
-                <span>전송 템플릿</span>
-                <select
-                  value={kakaoTemplate}
-                  onChange={(event) => setKakaoTemplate(event.target.value as KakaoTemplateCode)}
-                >
-                  {KAKAO_TEMPLATES.map((template) => (
-                    <option key={template.code} value={template.code}>
-                      {template.label}
-                    </option>
+                <label className={styles.field}>
+                  <span>전송 템플릿</span>
+                  <select
+                    value={kakaoTemplate}
+                    onChange={(event) => setKakaoTemplate(event.target.value as KakaoTemplateCode)}
+                  >
+                    {KAKAO_TEMPLATES.map((template) => (
+                      <option key={template.code} value={template.code}>
+                        {template.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <div className={styles.templateHint}>{currentTemplate.description}</div>
+
+                <div className={styles.fieldGrid}>
+                  {currentTemplate.fields.map((field) => (
+                    <label key={field} className={styles.field}>
+                      <span>{field}</span>
+                      <input
+                        type="text"
+                        value={kakaoParams[field] ?? ""}
+                        onChange={(event) =>
+                          setKakaoParams((current) => ({
+                            ...current,
+                            [field]: event.target.value,
+                          }))
+                        }
+                      />
+                    </label>
                   ))}
-                </select>
-              </label>
-
-              <div className={styles.templateHint}>{currentTemplate.description}</div>
-
-              <div className={styles.fieldGrid}>
-                {currentTemplate.fields.map((field) => (
-                  <label key={field} className={styles.field}>
-                    <span>{field}</span>
-                    <input
-                      type="text"
-                      value={kakaoParams[field] ?? ""}
-                      onChange={(event) =>
-                        setKakaoParams((current) => ({
-                          ...current,
-                          [field]: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                ))}
-              </div>
-
-              {kakaoFlash ? <FlashBanner message={kakaoFlash} /> : null}
-
-              <div className={styles.buttonRow}>
-                <button
-                  type="button"
-                  className={styles.primaryButton}
-                  disabled={sendingKakao}
-                  onClick={handleKakaoSend}
-                >
-                  {sendingKakao ? "전송 중..." : "카카오 즉시 전송"}
-                </button>
-              </div>
-            </section>
-
-            <section className={styles.surfaceCard}>
-              <div className={styles.previewBox}>
-                <span className={styles.sectionEyebrow}>Preview</span>
-                <pre>{previewMessage(kakaoTemplate, kakaoParams)}</pre>
-              </div>
-
-              <div className={styles.configBox}>
-                <div className={styles.configHeader}>
-                  <strong>설정 상태</strong>
-                  <button type="button" className={styles.ghostButton} onClick={() => void loadKakaoStatus()}>
-                    {kakaoStatusLoading ? "확인 중..." : "다시 확인"}
-                  </button>
                 </div>
 
-                {kakaoStatus ? (
-                  <>
-                    <div className={`${styles.statusPill} ${kakaoStatus.configured ? styles.toneSuccess : styles.toneDanger}`}>
-                      {kakaoStatus.configured ? "전송 가능" : "설정 필요"}
-                    </div>
-                    <p className={styles.configText}>
-                      필수 누락: {kakaoStatus.missing.length ? kakaoStatus.missing.join(", ") : "없음"}
-                    </p>
-                    <p className={styles.configText}>
-                      선택 누락: {kakaoStatus.optionalMissing.length ? kakaoStatus.optionalMissing.join(", ") : "없음"}
-                    </p>
-                  </>
-                ) : (
-                  <p className={styles.configText}>카카오 설정 상태를 불러오지 못했습니다.</p>
-                )}
-              </div>
-            </section>
-          </div>
-        </section>
+                {kakaoFlash ? <FlashBanner message={kakaoFlash} /> : null}
+
+                <div className={styles.buttonRow}>
+                  <button
+                    type="button"
+                    className={styles.primaryButton}
+                    disabled={sendingKakao}
+                    onClick={handleKakaoSend}
+                  >
+                    {sendingKakao ? "전송 중..." : "카카오 즉시 전송"}
+                  </button>
+                </div>
+              </section>
+
+              <section className={styles.surfaceCard}>
+                <div className={styles.previewBox}>
+                  <span className={styles.sectionEyebrow}>Preview</span>
+                  <pre>{previewMessage(kakaoTemplate, kakaoParams)}</pre>
+                </div>
+
+                <div className={styles.configBox}>
+                  <div className={styles.configHeader}>
+                    <strong>설정 상태</strong>
+                    <button type="button" className={styles.ghostButton} onClick={() => void loadKakaoStatus()}>
+                      {kakaoStatusLoading ? "확인 중..." : "다시 확인"}
+                    </button>
+                  </div>
+
+                  {kakaoStatus ? (
+                    <>
+                      <div className={`${styles.statusPill} ${kakaoStatus.configured ? styles.toneSuccess : styles.toneDanger}`}>
+                        {kakaoStatus.configured ? "전송 가능" : "설정 필요"}
+                      </div>
+                      <p className={styles.configText}>
+                        필수 누락: {kakaoStatus.missing.length ? kakaoStatus.missing.join(", ") : "없음"}
+                      </p>
+                      <p className={styles.configText}>
+                        선택 누락: {kakaoStatus.optionalMissing.length ? kakaoStatus.optionalMissing.join(", ") : "없음"}
+                      </p>
+                    </>
+                  ) : (
+                    <p className={styles.configText}>카카오 설정 상태를 불러오지 못했습니다.</p>
+                  )}
+                </div>
+              </section>
+            </div>
+          </section>
+        ) : null}
       </div>
     </div>
   );
@@ -425,89 +440,465 @@ function AdminView(props: {
   };
   runningJobsCount: number;
   onRun: (scope: ChannelKey[], label: string) => void;
+  adminTab: "labor" | "tax";
+  setAdminTab: (tab: "labor" | "tax") => void;
 }) {
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
+  const selectedClient = props.clients.find((client) => client.id === props.currentClientId) ?? props.clients[0];
+  const tenant = tenants.find((item) => item.name === selectedClient?.name);
+  const tenantEmployees = (tenant ? employees.filter((employee) => employee.tenant_id === tenant.id) : []).sort((a, b) =>
+    b.hire_date.localeCompare(a.hire_date),
+  );
+  const selectedEmployee =
+    tenantEmployees.find((employee) => employee.id === selectedEmployeeId) ?? tenantEmployees[0];
+  const selectedEmployeeDocs = selectedEmployee
+    ? laborDocuments.filter((document) => document.tenant_id === tenant?.id && document.employee_id === selectedEmployee.id)
+    : [];
+  const selectedEmployeeContracts = selectedEmployee
+    ? contracts.filter((contract) => contract.tenant_id === tenant?.id && contract.employee_id === selectedEmployee.id)
+    : [];
+  const selectedEmployeeRequests = selectedEmployee
+    ? serviceRequests.filter((request) => request.tenant_id === tenant?.id && request.employee_id === selectedEmployee.id)
+    : [];
+  const selectedEmployeeTasks = selectedEmployee
+    ? workTasks.filter(
+        (task) =>
+          task.tenant_id === tenant?.id &&
+          task.employee_id === selectedEmployee.id &&
+          (task.domain === "노무" || task.domain === "공통"),
+      )
+    : [];
+  const selectedEmployeeIssues = selectedEmployee
+    ? laborIssues.filter((issue) => issue.tenant_id === tenant?.id && issue.employee_id === selectedEmployee.id)
+    : [];
+  const selectedLeaveBalance = selectedEmployee
+    ? leaveBalances.find((leave) => leave.tenant_id === tenant?.id && leave.employee_id === selectedEmployee.id)
+    : undefined;
+  const tenantTaxTasks = tenant ? taxTasks.filter((task) => task.tenant_id === tenant.id) : [];
+  const tenantMonthlyReports = tenant ? monthlyReports.filter((report) => report.tenant_id === tenant.id) : [];
+
+  useEffect(() => {
+    if (!tenantEmployees.length) {
+      setSelectedEmployeeId("");
+      return;
+    }
+
+    const exists = tenantEmployees.some((employee) => employee.id === selectedEmployeeId);
+    if (!exists) {
+      setSelectedEmployeeId(tenantEmployees[0].id);
+    }
+  }, [selectedEmployeeId, tenantEmployees]);
+
   return (
     <>
-      <section className={styles.heroStrip}>
+      <section className={styles.operationsHero}>
         <div>
-          <span className={styles.sectionEyebrow}>Operations Focus</span>
-          <h2 className={styles.heroStripTitle}>고객사 연결 상태와 실행 버튼을 한 화면에 배치했습니다.</h2>
+          <span className={styles.sectionEyebrow}>Operations Desk</span>
+          <h2 className={styles.heroStripTitle}>인사노무와 세무회계만 남긴 관리자 운영 워크스페이스입니다.</h2>
           <p className={styles.heroStripText}>
-            정적인 위멤버스 복제 화면이 아니라, 실제 `/api/clients/:id/jobs/run` 요청으로 홈택스와
-            4대보험 수집을 시작하고 실시간 ERP 상태에 반영됩니다.
+            고객사가 수백 개로 늘어나도 클릭형 카드보다 빠르게 훑을 수 있도록, 회사 목록과 직원 표를
+            노션형 데이터베이스처럼 한 화면에 배치했습니다.
           </p>
         </div>
         <div className={styles.heroStripMeta}>
           <div className={styles.heroMetric}>
-            <span>브리지 상태</span>
-            <strong>{props.dataBridgeConnected ? "연결됨" : "오프라인"}</strong>
+            <span>활성 고객사</span>
+            <strong>{props.stats?.totalClients ?? props.clients.length}</strong>
           </div>
           <div className={styles.heroMetric}>
-            <span>브리지 주소</span>
-            <strong>{props.dataBridgePort ? `:${props.dataBridgePort}` : "확인 필요"}</strong>
+            <span>진행 중 작업</span>
+            <strong>{props.runningJobsCount}</strong>
           </div>
         </div>
       </section>
 
-      <section className={styles.statsGrid}>
-        <StatCard label="활성 고객사" value={String(props.stats?.totalClients ?? 0)} hint="수임 상태 ACTIVE 기준" />
-        <StatCard label="오늘 성공" value={String(props.stats?.todaySuccess ?? 0)} hint="브리지 연동 완료" />
-        <StatCard label="진행 중" value={String(props.stats?.todayRunning ?? 0)} hint="실시간 수집 작업" />
-        <StatCard label="조치 필요" value={String(props.stats?.needsAction ?? 0)} hint="로그인/동의/오류" />
+      <section className={styles.workspaceTabs}>
+        <button
+          type="button"
+          className={`${styles.workspaceTab} ${props.adminTab === "labor" ? styles.workspaceTabActive : ""}`}
+          onClick={() => props.setAdminTab("labor")}
+        >
+          인사노무
+        </button>
+        <button
+          type="button"
+          className={`${styles.workspaceTab} ${props.adminTab === "tax" ? styles.workspaceTabActive : ""}`}
+          onClick={() => props.setAdminTab("tax")}
+        >
+          세무회계
+        </button>
       </section>
 
-      <div className={styles.adminGrid}>
-        <aside className={styles.surfaceCard}>
-          <div className={styles.surfaceHeader}>
-            <div>
-              <span className={styles.sectionEyebrow}>Clients</span>
-              <h2 className={styles.surfaceTitle}>관리 대상 고객사</h2>
+      {props.adminTab === "labor" ? (
+        <section className={styles.boardShell}>
+          <aside className={styles.companyRail}>
+            <div className={styles.boardHeader}>
+              <div>
+                <span className={styles.sectionEyebrow}>Companies</span>
+                <h2 className={styles.surfaceTitle}>관리 업체</h2>
+              </div>
+              <span className={styles.counterPill}>{props.clients.length}개</span>
             </div>
-            <span className={styles.counterPill}>{props.clients.length}개</span>
-          </div>
 
-          <div className={styles.clientList}>
-            {props.clients.map((client) => (
-              <button
-                key={client.id}
-                type="button"
-                className={`${styles.clientItem} ${client.id === props.currentClientId ? styles.clientItemActive : ""}`}
-                onClick={() => props.setCurrentClientId(client.id)}
-              >
-                <div className={styles.clientItemHeader}>
-                  <strong>{client.name}</strong>
-                  <span className={`${styles.statusPill} ${statusTone(client.channels.hometax)}`}>
-                    {channelSummary(client)}
-                  </span>
+            <div className={styles.companyRailList}>
+              {props.clients.map((client) => {
+                const clientTenant = tenants.find((item) => item.name === client.name);
+                const companyEmployees = clientTenant
+                  ? employees.filter((employee) => employee.tenant_id === clientTenant.id)
+                  : [];
+
+                return (
+                  <button
+                    key={client.id}
+                    type="button"
+                    className={`${styles.companyRailItem} ${client.id === props.currentClientId ? styles.companyRailItemActive : ""}`}
+                    onClick={() => props.setCurrentClientId(client.id)}
+                  >
+                    <div className={styles.companyRailItemTop}>
+                      <strong>{client.name}</strong>
+                      <span className={`${styles.statusPill} ${statusTone(client.channels.hometax)}`}>
+                        {channelSummary(client)}
+                      </span>
+                    </div>
+                    <span>{client.bizNo}</span>
+                    <span>직원 {companyEmployees.length}명</span>
+                  </button>
+                );
+              })}
+            </div>
+          </aside>
+
+          <div className={styles.boardMain}>
+            <section className={styles.boardOverview}>
+              <div>
+                <span className={styles.sectionEyebrow}>Labor Database</span>
+                <h2 className={styles.surfaceTitle}>{selectedClient?.name ?? "업체 선택"}</h2>
+                <p className={styles.boardDescription}>
+                  입사일 기준으로 인원 흐름을 보고, 오른쪽 상세 패널에서 계약서와 요청 이력을 바로 확인합니다.
+                </p>
+              </div>
+              <div className={styles.boardOverviewStats}>
+                <div className={styles.boardMetric}>
+                  <span>담당자</span>
+                  <strong>{selectedClient?.manager ?? "-"}</strong>
                 </div>
-                <p>{client.bizNo}</p>
-                <span>담당 {client.manager}</span>
-              </button>
-            ))}
-          </div>
-        </aside>
+                <div className={styles.boardMetric}>
+                  <span>노무 리스크</span>
+                  <strong>{tenant ? laborIssues.filter((issue) => issue.tenant_id === tenant.id).length : 0}</strong>
+                </div>
+                <div className={styles.boardMetric}>
+                  <span>최근 작업</span>
+                  <strong>{tenant ? workTasks.filter((task) => task.tenant_id === tenant.id).length : 0}</strong>
+                </div>
+              </div>
+            </section>
 
-        <section className={styles.surfaceCard}>
-          <div className={styles.surfaceHeader}>
-            <div>
-              <span className={styles.sectionEyebrow}>Detail</span>
-              <h2 className={styles.surfaceTitle}>{props.currentClientName} 연결 센터</h2>
+            {tenant ? (
+              <div className={styles.databaseLayout}>
+                <section className={styles.databaseSheet}>
+                  <div className={styles.sheetToolbar}>
+                    <span className={styles.sheetLabel}>Employees</span>
+                    <span className={styles.sheetSubLabel}>입사일 최신순</span>
+                  </div>
+
+                  <div className={styles.databaseTable}>
+                    <div className={styles.databaseHead}>
+                      <span>이름</span>
+                      <span>입사일</span>
+                      <span>부서</span>
+                      <span>직책</span>
+                      <span>계약서</span>
+                      <span>자료</span>
+                      <span>노무 진행</span>
+                      <span>리스크</span>
+                    </div>
+
+                    {tenantEmployees.map((employee) => {
+                      const employeeContracts = contracts.filter(
+                        (contract) => contract.tenant_id === tenant.id && contract.employee_id === employee.id,
+                      );
+                      const employeeDocs = laborDocuments.filter(
+                        (document) => document.tenant_id === tenant.id && document.employee_id === employee.id,
+                      );
+                      const employeeLaborTasks = workTasks.filter(
+                        (task) =>
+                          task.tenant_id === tenant.id &&
+                          task.employee_id === employee.id &&
+                          (task.domain === "노무" || task.domain === "공통") &&
+                          task.status !== "done",
+                      );
+                      const employeeIssues = laborIssues.filter(
+                        (issue) => issue.tenant_id === tenant.id && issue.employee_id === employee.id,
+                      );
+
+                      return (
+                        <button
+                          key={employee.id}
+                          type="button"
+                          className={`${styles.databaseRow} ${employee.id === selectedEmployee?.id ? styles.databaseRowActive : ""}`}
+                          onClick={() => setSelectedEmployeeId(employee.id)}
+                        >
+                          <span className={styles.cellPrimary}>
+                            {employee.full_name}
+                            <small>{employee.employment_status === "active" ? "재직" : employee.employment_status}</small>
+                          </span>
+                          <span>{formatDate(employee.hire_date)}</span>
+                          <span>{employee.department ?? "-"}</span>
+                          <span>{employee.job_title ?? "-"}</span>
+                          <span>{employeeContracts[0] ? contractStatusLabel(employeeContracts[0].status) : "미작성"}</span>
+                          <span>{employeeDocs.length}건</span>
+                          <span>{employeeLaborTasks.length ? `${employeeLaborTasks.length}건` : "없음"}</span>
+                          <span className={employeeIssues.length ? styles.textDanger : ""}>
+                            {employeeIssues.length ? `${employeeIssues.length}건` : "정상"}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+
+                <aside className={styles.employeeDock}>
+                  {selectedEmployee ? (
+                    <>
+                      <div className={styles.employeeDockHeader}>
+                        <div>
+                          <span className={styles.sectionEyebrow}>Selected Employee</span>
+                          <h3>{selectedEmployee.full_name}</h3>
+                          <p>
+                            {selectedEmployee.department ?? "부서 미지정"} · {selectedEmployee.job_title ?? "직책 미지정"}
+                          </p>
+                        </div>
+                        <span className={styles.counterPill}>{formatDate(selectedEmployee.hire_date)} 입사</span>
+                      </div>
+
+                      <div className={styles.dockGroup}>
+                        <strong>핵심 상태</strong>
+                        <div className={styles.dockMetrics}>
+                          <div className={styles.dockMetric}>
+                            <span>계약서</span>
+                            <b>{selectedEmployeeContracts[0] ? contractStatusLabel(selectedEmployeeContracts[0].status) : "미작성"}</b>
+                          </div>
+                          <div className={styles.dockMetric}>
+                            <span>잔여 연차</span>
+                            <b>{selectedLeaveBalance ? `${selectedLeaveBalance.remaining_days}일` : "-"}</b>
+                          </div>
+                          <div className={styles.dockMetric}>
+                            <span>요청</span>
+                            <b>{selectedEmployeeRequests.length}건</b>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className={styles.dockGroup}>
+                        <strong>근로계약/자료</strong>
+                        <div className={styles.dockList}>
+                          {selectedEmployeeContracts.map((contract) => (
+                            <div key={contract.id} className={styles.dockListItem}>
+                              <span>{contract.title}</span>
+                              <b>{contractStatusLabel(contract.status)}</b>
+                            </div>
+                          ))}
+                          {selectedEmployeeDocs.map((document) => (
+                            <div key={document.id} className={styles.dockListItem}>
+                              <span>{document.title}</span>
+                              <b>{document.tags.join(", ") || document.category}</b>
+                            </div>
+                          ))}
+                          {!selectedEmployeeContracts.length && !selectedEmployeeDocs.length ? (
+                            <p className={styles.emptyState}>연결된 문서가 없습니다.</p>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      <div className={styles.dockGroup}>
+                        <strong>노무 진행 항목</strong>
+                        <div className={styles.dockList}>
+                          {selectedEmployeeTasks.map((task) => (
+                            <div key={task.id} className={styles.dockListItem}>
+                              <span>{task.title}</span>
+                              <b>{task.status}</b>
+                            </div>
+                          ))}
+                          {!selectedEmployeeTasks.length ? <p className={styles.emptyState}>열려 있는 노무 작업이 없습니다.</p> : null}
+                        </div>
+                      </div>
+
+                      <div className={styles.dockGroup}>
+                        <strong>이슈 / 요청</strong>
+                        <div className={styles.dockList}>
+                          {selectedEmployeeIssues.map((issue) => (
+                            <div key={issue.id} className={styles.dockAlertItem}>
+                              <span>{issue.title}</span>
+                              <b>{issue.severity}</b>
+                            </div>
+                          ))}
+                          {selectedEmployeeRequests.map((request) => (
+                            <div key={request.id} className={styles.dockListItem}>
+                              <span>{request.title}</span>
+                              <b>{request.status}</b>
+                            </div>
+                          ))}
+                          {!selectedEmployeeIssues.length && !selectedEmployeeRequests.length ? (
+                            <p className={styles.emptyState}>등록된 이슈와 요청이 없습니다.</p>
+                          ) : null}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <p className={styles.emptyState}>직원을 선택하면 계약서와 노무 자료가 오른쪽에 표시됩니다.</p>
+                  )}
+                </aside>
+              </div>
+            ) : (
+              <section className={styles.surfaceCard}>
+                <p className={styles.emptyState}>
+                  아직 인사노무 세부 데이터가 연결되지 않은 고객사입니다. 회사 목록은 유지되고, 직원 데이터가
+                  들어오면 같은 형식으로 바로 확장됩니다.
+                </p>
+              </section>
+            )}
+          </div>
+        </section>
+      ) : (
+        <section className={styles.boardShell}>
+          <aside className={styles.companyRail}>
+            <div className={styles.boardHeader}>
+              <div>
+                <span className={styles.sectionEyebrow}>Companies</span>
+                <h2 className={styles.surfaceTitle}>세무 관리 업체</h2>
+              </div>
+            </div>
+            <div className={styles.companyRailList}>
+              {props.clients.map((client) => (
+                <button
+                  key={client.id}
+                  type="button"
+                  className={`${styles.companyRailItem} ${client.id === props.currentClientId ? styles.companyRailItemActive : ""}`}
+                  onClick={() => props.setCurrentClientId(client.id)}
+                >
+                  <div className={styles.companyRailItemTop}>
+                    <strong>{client.name}</strong>
+                    <span className={`${styles.statusPill} ${statusTone(client.channels.hometax)}`}>
+                      {STATUS_LABELS[client.channels.hometax]}
+                    </span>
+                  </div>
+                  <span>홈택스 {STATUS_LABELS[client.channels.hometax]}</span>
+                  <span>4대보험 {STATUS_LABELS[client.channels.fourInsure]}</span>
+                </button>
+              ))}
+            </div>
+          </aside>
+
+          <div className={styles.boardMain}>
+            <section className={styles.boardOverview}>
+              <div>
+                <span className={styles.sectionEyebrow}>Tax Desk</span>
+                <h2 className={styles.surfaceTitle}>{selectedClient?.name ?? "업체 선택"}</h2>
+                <p className={styles.boardDescription}>
+                  세무회계 탭은 월마감, 원천세, 4대보험 검토 업무를 표 형식으로 추적하도록 구성했습니다.
+                </p>
+              </div>
+              <div className={styles.boardOverviewStats}>
+                <div className={styles.boardMetric}>
+                  <span>브리지</span>
+                  <strong>{props.dataBridgeConnected ? "연결" : "오프라인"}</strong>
+                </div>
+                <div className={styles.boardMetric}>
+                  <span>포트</span>
+                  <strong>{props.dataBridgePort ? `:${props.dataBridgePort}` : "-"}</strong>
+                </div>
+                <div className={styles.boardMetric}>
+                  <span>실행</span>
+                  <strong>{props.jobs.length}건</strong>
+                </div>
+              </div>
+            </section>
+
+            <div className={styles.taxBoard}>
+              <section className={styles.surfaceCard}>
+                <div className={styles.boardHeader}>
+                  <div>
+                    <span className={styles.sectionEyebrow}>Monthly Close</span>
+                    <h2 className={styles.surfaceTitle}>월마감 / 보고</h2>
+                  </div>
+                </div>
+                <div className={styles.simpleTable}>
+                  <div className={styles.simpleTableHead}>
+                    <span>월</span>
+                    <span>요약</span>
+                    <span>대표 확인</span>
+                  </div>
+                  {tenantMonthlyReports.map((report) => (
+                    <div key={report.id} className={styles.simpleTableRow}>
+                      <span>{report.month}</span>
+                      <span>{report.summary ?? "-"}</span>
+                      <span>{report.owner_confirmed ? "완료" : "대기"}</span>
+                    </div>
+                  ))}
+                  {!tenantMonthlyReports.length ? <p className={styles.emptyState}>월마감 데이터가 없습니다.</p> : null}
+                </div>
+              </section>
+
+              <section className={styles.surfaceCard}>
+                <div className={styles.boardHeader}>
+                  <div>
+                    <span className={styles.sectionEyebrow}>Tax Tasks</span>
+                    <h2 className={styles.surfaceTitle}>세무회계 진행표</h2>
+                  </div>
+                  <button
+                    type="button"
+                    className={styles.primaryButton}
+                    disabled={props.jobActionKey === "통합 재수집"}
+                    onClick={() => props.onRun(["hometax", "fourInsure"], "통합 재수집")}
+                  >
+                    {props.jobActionKey === "통합 재수집" ? "실행 중..." : "자료 재수집"}
+                  </button>
+                </div>
+                <div className={styles.simpleTable}>
+                  <div className={styles.simpleTableHead}>
+                    <span>업무</span>
+                    <span>카테고리</span>
+                    <span>마감일</span>
+                    <span>상태</span>
+                  </div>
+                  {tenantTaxTasks.map((task) => (
+                    <div key={task.id} className={styles.simpleTableRow}>
+                      <span>{task.title}</span>
+                      <span>{task.category}</span>
+                      <span>{task.due_date ? formatDate(task.due_date) : "-"}</span>
+                      <span>{task.status}</span>
+                    </div>
+                  ))}
+                  {!tenantTaxTasks.length ? <p className={styles.emptyState}>세무회계 작업 데이터가 없습니다.</p> : null}
+                </div>
+              </section>
             </div>
           </div>
-          <DetailView
-            clientName={props.currentClientName}
-            currentClient={props.clients.find((client) => client.id === props.currentClientId)}
-            jobActionKey={props.jobActionKey}
-            jobFlash={props.jobFlash}
-            jobs={props.jobs}
-            documents={props.documents}
-            runningJobsCount={props.runningJobsCount}
-            onRun={props.onRun}
-          />
         </section>
-      </div>
+      )}
     </>
   );
+}
+
+function formatDate(value: string) {
+  return value.replaceAll("-", ".");
+}
+
+function contractStatusLabel(status: string) {
+  switch (status) {
+    case "draft":
+      return "초안";
+    case "sent":
+      return "발송";
+    case "employee_signed":
+      return "직원 서명";
+    case "fully_signed":
+      return "완료";
+    case "void":
+      return "무효";
+    default:
+      return status;
+  }
 }
 
 function ClientView(props: {

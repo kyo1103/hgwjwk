@@ -1012,3 +1012,416 @@
   padding: 60px;
   font-size: 1rem;
 }
+
+.operationsHero {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 34px 36px;
+  border-radius: 28px;
+  margin-bottom: 24px;
+  background:
+    radial-gradient(circle at top left, rgba(192, 220, 255, 0.22), transparent 30%),
+    linear-gradient(145deg, #0f172a 0%, #13253f 50%, #1d4e89 100%);
+  color: #f8fafc;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.18);
+}
+
+.workspaceTabs {
+  display: inline-flex;
+  gap: 10px;
+  padding: 8px;
+  margin-bottom: 22px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.workspaceTab {
+  min-width: 132px;
+  height: 44px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: #475569;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.workspaceTabActive {
+  background: linear-gradient(135deg, #0f172a 0%, #1d4e89 100%);
+  color: #f8fafc;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.18);
+}
+
+.boardShell {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.companyRail,
+.boardMain,
+.databaseSheet,
+.employeeDock,
+.surfaceCard {
+  border-radius: 24px;
+}
+
+.companyRail {
+  position: sticky;
+  top: 24px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.06);
+}
+
+.boardMain {
+  display: grid;
+  gap: 18px;
+}
+
+.boardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.boardDescription {
+  margin: 8px 0 0;
+  color: #64748b;
+}
+
+.companyRailList {
+  display: grid;
+  gap: 10px;
+}
+
+.companyRailItem {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  padding: 14px 16px;
+  text-align: left;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  cursor: pointer;
+}
+
+.companyRailItemActive,
+.companyRailItem:hover {
+  border-color: rgba(29, 78, 137, 0.3);
+  background: linear-gradient(180deg, #eff6ff 0%, #f8fbff 100%);
+}
+
+.companyRailItemTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.companyRailItem strong {
+  color: #0f172a;
+}
+
+.companyRailItem span {
+  color: #64748b;
+  font-size: 0.84rem;
+}
+
+.boardOverview {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 26px 28px;
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(241, 245, 249, 0.96) 100%);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.boardOverviewStats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(110px, 1fr));
+  gap: 12px;
+}
+
+.boardMetric {
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.boardMetric span,
+.dockMetric span {
+  display: block;
+  font-size: 0.77rem;
+  font-weight: 800;
+  color: #64748b;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.boardMetric strong,
+.dockMetric b {
+  color: #0f172a;
+  font-size: 1.05rem;
+}
+
+.databaseLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) 360px;
+  gap: 18px;
+}
+
+.databaseSheet,
+.employeeDock,
+.taxBoard .surfaceCard {
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.06);
+}
+
+.sheetToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.sheetLabel {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.sheetSubLabel {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.databaseTable {
+  display: grid;
+  gap: 8px;
+}
+
+.databaseHead,
+.databaseRow {
+  display: grid;
+  grid-template-columns: 1.2fr 0.9fr 0.9fr 0.9fr 0.8fr 0.7fr 0.8fr 0.7fr;
+  gap: 10px;
+  align-items: center;
+}
+
+.databaseHead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.databaseRow {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 16px;
+  background: #ffffff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.databaseRow:hover,
+.databaseRowActive {
+  border-color: rgba(29, 78, 137, 0.28);
+  background: #f8fbff;
+}
+
+.databaseRow span {
+  color: #334155;
+  font-size: 0.9rem;
+}
+
+.cellPrimary {
+  display: grid;
+  gap: 2px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.cellPrimary small {
+  color: #64748b;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.employeeDock {
+  display: grid;
+  gap: 16px;
+}
+
+.employeeDockHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.employeeDockHeader h3 {
+  margin: 4px 0 6px;
+  color: #0f172a;
+}
+
+.employeeDockHeader p {
+  margin: 0;
+  color: #64748b;
+}
+
+.dockGroup {
+  display: grid;
+  gap: 10px;
+}
+
+.dockGroup strong {
+  color: #0f172a;
+}
+
+.dockMetrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.dockMetric {
+  padding: 14px;
+  border-radius: 16px;
+  background: #f8fafc;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+.dockList {
+  display: grid;
+  gap: 8px;
+}
+
+.dockListItem,
+.dockAlertItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #f8fafc;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+.dockAlertItem {
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+
+.dockListItem span,
+.dockAlertItem span {
+  color: #334155;
+}
+
+.dockListItem b,
+.dockAlertItem b {
+  color: #0f172a;
+}
+
+.textDanger {
+  color: #b91c1c !important;
+  font-weight: 700;
+}
+
+.taxBoard {
+  display: grid;
+  grid-template-columns: 0.95fr 1.05fr;
+  gap: 18px;
+}
+
+.simpleTable {
+  display: grid;
+  gap: 10px;
+}
+
+.simpleTableHead,
+.simpleTableRow {
+  display: grid;
+  grid-template-columns: 0.6fr 1.4fr 0.7fr 0.6fr;
+  gap: 12px;
+  align-items: center;
+}
+
+.simpleTableHead {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.simpleTableRow {
+  padding: 14px;
+  border-radius: 16px;
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+@media (max-width: 1180px) {
+  .boardShell,
+  .databaseLayout,
+  .taxBoard {
+    grid-template-columns: 1fr;
+  }
+
+  .companyRail {
+    position: static;
+  }
+
+  .boardOverview,
+  .operationsHero,
+  .employeeDockHeader {
+    flex-direction: column;
+  }
+
+  .boardOverviewStats,
+  .dockMetrics {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 860px) {
+  .databaseHead,
+  .databaseRow,
+  .simpleTableHead,
+  .simpleTableRow {
+    grid-template-columns: 1fr;
+  }
+
+  .boardOverviewStats,
+  .dockMetrics {
+    grid-template-columns: 1fr;
+  }
+}
