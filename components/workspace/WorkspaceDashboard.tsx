@@ -43,7 +43,6 @@ import {
   statusTone,
   type FlashMessage,
 } from "@/components/workspace/WorkspaceBits";
-import InfoPage from "@/app/erp/info/page";
 import ControlTowerPage from "@/app/erp/control-tower/page";
 import ReportPage from "@/app/erp/report/page";
 
@@ -550,7 +549,7 @@ function AdminView(props: {
   adminTab: "labor" | "tax";
   setAdminTab: (tab: "labor" | "tax") => void;
 }) {
-  const [taxTab, setTaxTab] = useState<"info" | "business" | "consulting">("info");
+  const [taxTab, setTaxTab] = useState<"business" | "consulting">("business");
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
   const [companyQuery, setCompanyQuery] = useState("");
   const [employeeQuery, setEmployeeQuery] = useState("");
@@ -1017,12 +1016,6 @@ function AdminView(props: {
             display: "flex", gap: "24px", padding: "0 32px", borderBottom: "1px solid #e2e8f0", background: "#fff"
           }}>
             <button
-              style={{ padding: "16px 0", fontSize: "0.95rem", fontWeight: taxTab === "info" ? 800 : 600, color: taxTab === "info" ? "#2563eb" : "#64748b", borderBottom: taxTab === "info" ? "3px solid #2563eb" : "3px solid transparent", background: "transparent", border: "none", cursor: "pointer", transition: "all 0.2s" }}
-              onClick={() => setTaxTab("info")}
-            >
-              기본정보
-            </button>
-            <button
               style={{ padding: "16px 0", fontSize: "0.95rem", fontWeight: taxTab === "business" ? 800 : 600, color: taxTab === "business" ? "#2563eb" : "#64748b", borderBottom: taxTab === "business" ? "3px solid #2563eb" : "3px solid transparent", background: "transparent", border: "none", cursor: "pointer", transition: "all 0.2s" }}
               onClick={() => setTaxTab("business")}
             >
@@ -1036,7 +1029,6 @@ function AdminView(props: {
             </button>
           </nav>
           <div>
-            {taxTab === "info" && <InfoPage />}
             {taxTab === "business" && <ControlTowerPage />}
             {taxTab === "consulting" && <ReportPage />}
           </div>

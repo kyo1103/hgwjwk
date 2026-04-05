@@ -1,4 +1,5 @@
 /* ─────────────────────────── 관제탑 공유 데이터 ─────────────────────────── */
+import { clientLookupRows } from "./wemembers-data";
 
 export type StepStatus = "done" | "in-progress" | "pending";
 
@@ -87,25 +88,15 @@ function generateMockMonths(isCorp: boolean): MonthData[] {
   return data;
 }
 
-export const MOCK_COMPANIES: Company[] = [
-  {
-    id: "c1", name: "유니온테크 주식회사", shortName: "유니온테크", bizNo: "123-45-12345", manager: "김노무", category: "제조업",
-    months: generateMockMonths(true),
-  },
-  {
-    id: "c2", name: "주식회사 데이터솔루션", shortName: "데이터솔루션", bizNo: "234-56-78901", manager: "이세무", category: "수출업",
-    months: generateMockMonths(true),
-  },
-  {
-    id: "c3", name: "코스모스 카페", shortName: "코스모스카페", bizNo: "345-67-89012", manager: "박대리", category: "병의원",
-    months: generateMockMonths(false),
-  },
-  {
-    id: "c4", name: "에이스 건설", shortName: "에이스건설", bizNo: "456-78-90123", manager: "최주임", category: "제조업",
-    months: generateMockMonths(true),
-  },
-  {
-    id: "c5", name: "스타트업 홀딩스", shortName: "스타트업홀딩스", bizNo: "567-89-01234", manager: "정과장", category: "수출업",
-    months: generateMockMonths(true),
-  },
-];
+export const MOCK_COMPANIES: Company[] = clientLookupRows.map((row, i) => {
+  const isCorp = row.category === "법인";
+  return {
+    id: row.id,
+    name: row.name,
+    shortName: row.name.replace("주식회사", "").trim(),
+    bizNo: row.bizNo,
+    manager: row.manager,
+    category: isCorp ? "제조업" : "병의원",
+    months: generateMockMonths(isCorp),
+  };
+});

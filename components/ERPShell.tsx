@@ -10,7 +10,6 @@ import CopyPageButton from "@/components/CopyPageButton";
 export default function ERPShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
-  const isInfo = pathname.startsWith("/erp/info");
   const isBusiness = pathname.startsWith("/erp/control-tower");
   const isReport = pathname.startsWith("/erp/report");
 
@@ -32,9 +31,6 @@ export default function ERPShell({ children }: { children: ReactNode }) {
       </header>
 
       <nav className={styles.topTabs}>
-        <Link href="/erp/info" className={`${styles.topTab} ${isInfo ? styles.topTabActive : ""}`}>
-          기본정보
-        </Link>
         <Link href="/erp/control-tower" className={`${styles.topTab} ${isBusiness ? styles.topTabActive : ""}`}>
           사업
         </Link>
