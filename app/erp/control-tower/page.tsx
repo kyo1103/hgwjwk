@@ -148,14 +148,59 @@ export default function ControlTowerPage() {
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
   const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
 
+  // ── 필터 상태 ──
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterManager, setFilterManager] = useState("전체");
+  const [filterType, setFilterType] = useState("전체");
+  const [filterIncompleteOnly, setFilterIncompleteOnly] = useState(false);
+
+  // 담당자 목록 추출
+  const managerList = useMemo(() => {
+    const set = new Set<string>();
+    companies.forEach(c => set.add(c.manager));
+    return ["전체", ...Array.from(set).sort()];
+  }, [companies]);
+
+  // 필터링된 회사 목록
+  const filteredCompanies = useMemo(() => {
+    return companies.filter(c => {
+      // 검색 (업체명 또는 사업자번호)
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        if (!c.name.toLowerCase().includes(q) && !c.bizNo.includes(q)) return false;
+      }
+      // 담당자
+      if (filterManager !== "전체" && c.manager !== filterManager) return false;
+      // 구분 (category 기반 - 법인=제조업/수출업, 개인=병의원)
+      if (filterType === "법인" && c.category === "병의원") return false;
+      if (filterType === "개인" && c.category !== "병의원") return false;
+      // 미완료만
+      if (filterIncompleteOnly) {
+        const totalSteps = c.months.reduce((s, m) => s + m.reports.reduce((s2, r) => s2 + r.steps.length, 0), 0);
+        const doneSteps = c.months.reduce((s, m) => s + m.reports.reduce((s2, r) => s2 + r.steps.filter(st => st.status === "done").length, 0), 0);
+        if (totalSteps > 0 && doneSteps === totalSteps) return false;
+      }
+      return true;
+    });
+  }, [companies, searchQuery, filterManager, filterType, filterIncompleteOnly]);
+
+  const isFilterActive = searchQuery !== "" || filterManager !== "전체" || filterType !== "전체" || filterIncompleteOnly;
+
+  const resetFilters = () => {
+    setSearchQuery("");
+    setFilterManager("전체");
+    setFilterType("전체");
+    setFilterIncompleteOnly(false);
+  };
+
   const groupedCompanies = useMemo(() => {
     const groups: Record<string, Company[]> = {};
-    companies.forEach(c => {
+    filteredCompanies.forEach(c => {
       if (!groups[c.category]) groups[c.category] = [];
       groups[c.category].push(c);
     });
     return groups;
-  }, [companies]);
+  }, [filteredCompanies]);
 
   const withholdingStats = useMemo(() => {
     const stats: Record<string, { done: number; total: number }> = {};
@@ -269,6 +314,90 @@ export default function ControlTowerPage() {
             );
           })}
         </div>
+      </div>
+
+      {/* ─── 검색 및 필터 바 ─── */}
+      <div style={{
+        display: "flex", alignItems: "center", gap: 12, marginBottom: 16,
+        padding: "12px 16px", background: "#fff", borderRadius: 10,
+        border: `1px solid ${COLORS.border}`, boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
+        flexWrap: "wrap"
+      }}>
+        {/* 검색바 */}
+        <div style={{ position: "relative", flex: "1 1 220px", minWidth: 180 }}>
+          <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", fontSize: "0.85rem", color: "#94a3b8", pointerEvents: "none" }}>🔍</span>
+          <input
+            type="text"
+            placeholder="업체명 또는 사업자번호 검색"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            style={{
+              width: "100%", padding: "8px 12px 8px 32px", fontSize: "0.82rem", fontWeight: 600,
+              border: "1px solid #e2e8f0", borderRadius: 6, outline: "none", background: "#f8fafc",
+              color: "#0f172a", transition: "border-color 0.2s",
+            }}
+          />
+        </div>
+
+        <div style={{ width: 1, height: 26, background: "#e2e8f0", flexShrink: 0 }} />
+
+        {/* 담당자 필터 */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "#64748b", whiteSpace: "nowrap" }}>담당자</label>
+          <select
+            value={filterManager}
+            onChange={e => setFilterManager(e.target.value)}
+            style={{ padding: "6px 10px", fontSize: "0.8rem", fontWeight: 600, border: "1px solid #e2e8f0", borderRadius: 6, background: "#f8fafc", color: "#0f172a", outline: "none", cursor: "pointer" }}
+          >
+            {managerList.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+        </div>
+
+        {/* 구분 필터 */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "#64748b", whiteSpace: "nowrap" }}>구분</label>
+          <select
+            value={filterType}
+            onChange={e => setFilterType(e.target.value)}
+            style={{ padding: "6px 10px", fontSize: "0.8rem", fontWeight: 600, border: "1px solid #e2e8f0", borderRadius: 6, background: "#f8fafc", color: "#0f172a", outline: "none", cursor: "pointer" }}
+          >
+            <option value="전체">전체</option>
+            <option value="법인">법인</option>
+            <option value="개인">개인</option>
+          </select>
+        </div>
+
+        <div style={{ width: 1, height: 26, background: "#e2e8f0", flexShrink: 0 }} />
+
+        {/* 미완료만 보기 */}
+        <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", userSelect: "none" }}>
+          <input
+            type="checkbox"
+            checked={filterIncompleteOnly}
+            onChange={e => setFilterIncompleteOnly(e.target.checked)}
+            style={{ width: 15, height: 15, accentColor: "#2563eb", cursor: "pointer" }}
+          />
+          <span style={{ fontSize: "0.78rem", fontWeight: 700, color: filterIncompleteOnly ? "#2563eb" : "#475569" }}>미완료만 보기</span>
+        </label>
+
+        {/* 필터 초기화 */}
+        {isFilterActive && (
+          <button
+            onClick={resetFilters}
+            style={{
+              padding: "6px 14px", fontSize: "0.75rem", fontWeight: 700,
+              background: "#fee2e2", color: "#dc2626", border: "1px solid #fecaca",
+              borderRadius: 6, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap"
+            }}
+          >
+            ✕ 필터 초기화
+          </button>
+        )}
+
+        {/* 필터 결과 카운트 */}
+        <span style={{ fontSize: "0.72rem", color: "#94a3b8", fontWeight: 600, marginLeft: "auto" }}>
+          {filteredCompanies.length}개 업체 표시
+        </span>
       </div>
 
       {/* 범례 */}
