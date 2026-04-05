@@ -43,6 +43,9 @@ import {
   statusTone,
   type FlashMessage,
 } from "@/components/workspace/WorkspaceBits";
+import InfoPage from "@/app/erp/info/page";
+import ControlTowerPage from "@/app/erp/control-tower/page";
+import ReportPage from "@/app/erp/report/page";
 
 export default function WorkspaceDashboard({ session }: { session: WorkspaceSession }) {
   const router = useRouter();
@@ -547,6 +550,7 @@ function AdminView(props: {
   adminTab: "labor" | "tax";
   setAdminTab: (tab: "labor" | "tax") => void;
 }) {
+  const [taxTab, setTaxTab] = useState<"info" | "business" | "consulting">("info");
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
   const [companyQuery, setCompanyQuery] = useState("");
   const [employeeQuery, setEmployeeQuery] = useState("");
@@ -1008,119 +1012,33 @@ function AdminView(props: {
           </section>
         </section>
       ) : (
-        <section className={styles.boardShell}>
-          <aside className={styles.companyRail}>
-            <div className={styles.boardHeader}>
-              <div>
-                <span className={styles.sectionEyebrow}>Companies</span>
-                <h2 className={styles.surfaceTitle}>세무 관리 업체</h2>
-              </div>
-            </div>
-            <div className={styles.companyRailList}>
-              {props.clients.map((client) => (
-                <button
-                  key={client.id}
-                  type="button"
-                  className={`${styles.companyRailItem} ${client.id === props.currentClientId ? styles.companyRailItemActive : ""}`}
-                  onClick={() => props.setCurrentClientId(client.id)}
-                >
-                  <div className={styles.companyRailItemTop}>
-                    <strong>{client.name}</strong>
-                    <span className={`${styles.statusPill} ${statusTone(client.channels.hometax)}`}>
-                      {STATUS_LABELS[client.channels.hometax]}
-                    </span>
-                  </div>
-                  <span>홈택스 {STATUS_LABELS[client.channels.hometax]}</span>
-                  <span>4대보험 {STATUS_LABELS[client.channels.fourInsure]}</span>
-                </button>
-              ))}
-            </div>
-          </aside>
-
-          <div className={styles.boardMain}>
-            <section className={styles.boardOverview}>
-              <div>
-                <span className={styles.sectionEyebrow}>Tax Desk</span>
-                <h2 className={styles.surfaceTitle}>{selectedClient?.name ?? "업체 선택"}</h2>
-                <p className={styles.boardDescription}>
-                  세무회계 탭은 월마감, 원천세, 4대보험 검토 업무를 표 형식으로 추적하도록 구성했습니다.
-                </p>
-              </div>
-              <div className={styles.boardOverviewStats}>
-                <div className={styles.boardMetric}>
-                  <span>브리지</span>
-                  <strong>{props.dataBridgeConnected ? "연결" : "오프라인"}</strong>
-                </div>
-                <div className={styles.boardMetric}>
-                  <span>포트</span>
-                  <strong>{props.dataBridgePort ? `:${props.dataBridgePort}` : "-"}</strong>
-                </div>
-                <div className={styles.boardMetric}>
-                  <span>실행</span>
-                  <strong>{props.jobs.length}건</strong>
-                </div>
-              </div>
-            </section>
-
-            <div className={styles.taxBoard}>
-              <section className={styles.surfaceCard}>
-                <div className={styles.boardHeader}>
-                  <div>
-                    <span className={styles.sectionEyebrow}>Monthly Close</span>
-                    <h2 className={styles.surfaceTitle}>월마감 / 보고</h2>
-                  </div>
-                </div>
-                <div className={styles.simpleTable}>
-                  <div className={styles.simpleTableHead}>
-                    <span>월</span>
-                    <span>요약</span>
-                    <span>대표 확인</span>
-                  </div>
-                  {tenantMonthlyReports.map((report) => (
-                    <div key={report.id} className={styles.simpleTableRow}>
-                      <span>{report.month}</span>
-                      <span>{report.summary ?? "-"}</span>
-                      <span>{report.owner_confirmed ? "완료" : "대기"}</span>
-                    </div>
-                  ))}
-                  {!tenantMonthlyReports.length ? <p className={styles.emptyState}>월마감 데이터가 없습니다.</p> : null}
-                </div>
-              </section>
-
-              <section className={styles.surfaceCard}>
-                <div className={styles.boardHeader}>
-                  <div>
-                    <span className={styles.sectionEyebrow}>Tax Tasks</span>
-                    <h2 className={styles.surfaceTitle}>세무회계 진행표</h2>
-                  </div>
-                  <button
-                    type="button"
-                    className={styles.primaryButton}
-                    disabled={props.jobActionKey === "통합 재수집"}
-                    onClick={() => props.onRun(["hometax", "fourInsure"], "통합 재수집")}
-                  >
-                    {props.jobActionKey === "통합 재수집" ? "실행 중..." : "자료 재수집"}
-                  </button>
-                </div>
-                <div className={styles.simpleTable}>
-                  <div className={styles.simpleTableHead}>
-                    <span>업무</span>
-                    <span>카테고리</span>
-                    <span>마감일</span>
-                    <span>상태</span>
-                  </div>
-                  {tenantTaxTasks.map((task) => (
-                    <div key={task.id} className={styles.simpleTableRow}>
-                      <span>{task.title}</span>
-                      <span>{task.category}</span>
-                      <span>{task.due_date ? formatDate(task.due_date) : "-"}</span>
-                      <span>{task.status}</span>
-                    </div>
-                  ))}
-                  {!tenantTaxTasks.length ? <p className={styles.emptyState}>세무회계 작업 데이터가 없습니다.</p> : null}
-                </div>
-              </section>
-            </div>
+        <section style={{ background: "#f8fafc" }}>
+          <nav style={{
+            display: "flex", gap: "24px", padding: "0 32px", borderBottom: "1px solid #e2e8f0", background: "#fff"
+          }}>
+            <button
+              style={{ padding: "16px 0", fontSize: "0.95rem", fontWeight: taxTab === "info" ? 800 : 600, color: taxTab === "info" ? "#2563eb" : "#64748b", borderBottom: taxTab === "info" ? "3px solid #2563eb" : "3px solid transparent", background: "transparent", border: "none", cursor: "pointer", transition: "all 0.2s" }}
+              onClick={() => setTaxTab("info")}
+            >
+              기본정보
+            </button>
+            <button
+              style={{ padding: "16px 0", fontSize: "0.95rem", fontWeight: taxTab === "business" ? 800 : 600, color: taxTab === "business" ? "#2563eb" : "#64748b", borderBottom: taxTab === "business" ? "3px solid #2563eb" : "3px solid transparent", background: "transparent", border: "none", cursor: "pointer", transition: "all 0.2s" }}
+              onClick={() => setTaxTab("business")}
+            >
+              사업
+            </button>
+            <button
+              style={{ padding: "16px 0", fontSize: "0.95rem", fontWeight: taxTab === "consulting" ? 800 : 600, color: taxTab === "consulting" ? "#2563eb" : "#64748b", borderBottom: taxTab === "consulting" ? "3px solid #2563eb" : "3px solid transparent", background: "transparent", border: "none", cursor: "pointer", transition: "all 0.2s" }}
+              onClick={() => setTaxTab("consulting")}
+            >
+              컨설팅
+            </button>
+          </nav>
+          <div>
+            {taxTab === "info" && <InfoPage />}
+            {taxTab === "business" && <ControlTowerPage />}
+            {taxTab === "consulting" && <ReportPage />}
           </div>
         </section>
       )}
