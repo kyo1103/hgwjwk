@@ -1,8 +1,10 @@
 .root {
   min-height: 100vh;
-  background: #fdfdfd; /* Pure, clean Fintech SaaS background */
+  background: #fdfdfd;
+  /* Pure, clean Fintech SaaS background */
   font-family: var(--font-sans, system-ui, sans-serif);
-  color: #111827; /* Near black for maximum contrast */
+  color: #111827;
+  /* Near black for maximum contrast */
 }
 
 /* ---------- PREMIUM SaaS CENTERED CARD LAYOUT ---------- */
@@ -10,7 +12,8 @@
 .loginRoot {
   min-height: 100vh;
   width: 100vw;
-  background-color: #09090b; /* Zinc 950 base */
+  background-color: #09090b;
+  /* Zinc 950 base */
   background-image: radial-gradient(circle at 50% 10%, rgba(255, 255, 255, 0.05) 0%, transparent 60%);
   font-family: var(--font-sans, system-ui, sans-serif);
   color: #fafafa;
@@ -22,18 +25,26 @@
 
 /* Float Animation */
 @keyframes cardFloat {
-  0% { transform: translateY(20px); opacity: 0; }
-  100% { transform: translateY(0); opacity: 1; }
+  0% {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 /* Floating Modular Island */
 .splitCard {
   width: 100%;
   max-width: 1000px;
-  background: rgba(24, 24, 27, 0.6); /* Zinc 900 translucent */
+  background: rgba(24, 24, 27, 0.6);
+  /* Zinc 900 translucent */
   border-radius: 24px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 
+  box-shadow:
     0 25px 50px -12px rgba(0, 0, 0, 0.5),
     inset 0 1px 1px rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(40px);
@@ -99,7 +110,8 @@
 .heroSubtext {
   font-size: 1.05rem;
   line-height: 1.6;
-  color: #a1a1aa; /* Zinc 400 */
+  color: #a1a1aa;
+  /* Zinc 400 */
   margin: 0;
   font-weight: 400;
 }
@@ -172,7 +184,8 @@
 }
 
 .accountButton span {
-  color: #71717a; /* Zinc 500 */
+  color: #71717a;
+  /* Zinc 500 */
   font-size: 0.85rem;
 }
 
@@ -224,12 +237,14 @@
 }
 
 .field input::placeholder {
-  color: #52525b; /* Zinc 600 */
+  color: #52525b;
+  /* Zinc 600 */
 }
 
 .field input:focus {
   outline: none;
-  border-color: #f4f4f5; /* Zinc 100 */
+  border-color: #f4f4f5;
+  /* Zinc 100 */
   background: rgba(0, 0, 0, 0.5);
   box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
 }
@@ -248,7 +263,8 @@
 }
 
 .primaryButton:hover {
-  background: #e4e4e7; /* Zinc 200 */
+  background: #e4e4e7;
+  /* Zinc 200 */
   transform: translateY(-1px);
 }
 
@@ -263,15 +279,18 @@
     padding: 24px;
     align-items: center;
   }
+
   .splitCard {
     grid-template-columns: 1fr;
     max-width: 500px;
   }
+
   .splitVisual {
     padding: 40px 32px;
     border-right: none;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   }
+
   .splitLogin {
     padding: 40px 32px;
   }
@@ -1123,6 +1142,7 @@
 }
 
 @media (max-width: 1180px) {
+
   .adminGrid,
   .clientGrid,
   .kakaoGrid,
@@ -1251,7 +1271,7 @@
   font-size: 0.9rem;
 }
 
-.linkButton, 
+.linkButton,
 .secondaryButton {
   display: inline-flex;
   align-items: center;
@@ -2206,6 +2226,7 @@
 }
 
 @media (max-width: 1180px) {
+
   .boardShell,
   .databaseLayout,
   .taxBoard,
@@ -2274,6 +2295,7 @@
 }
 
 @media (max-width: 860px) {
+
   .databaseHead,
   .databaseRow,
   .simpleTableHead,

@@ -8,6 +8,7 @@ export interface ReportStep {
   status: StepStatus;
   hasButton: boolean;
   buttonLabel?: string;
+  isAutoSync?: boolean;
 }
 
 export interface TaxReport {
@@ -40,16 +41,62 @@ export const INDUSTRY_META: Record<IndustryCategory, { icon: string; color: stri
 
 /* ─────────────────────────── 7단계 템플릿 ─────────────────────────── */
 
-function makeSteps(doneCount: number, inProgressIndex?: number): ReportStep[] {
-  const template: { label: string; hasButton: boolean; buttonLabel?: string }[] = [
-    { label: "API 자동수집", hasButton: true, buttonLabel: "수집" },
-    { label: "수기자료 요청", hasButton: true, buttonLabel: "발송" },
-    { label: "자료 수집 완료", hasButton: false },
-    { label: "세무사랑 서식 변환", hasButton: true, buttonLabel: "변환" },
-    { label: "세무사랑 장부작업", hasButton: false },
-    { label: "홈택스 신고 완료", hasButton: false },
-    { label: "납부서·보고서 전송", hasButton: true, buttonLabel: "전송" },
-  ];
+function makeSteps(taxType: string, doneCount: number, inProgressIndex?: number): ReportStep[] {
+  let template: { label: string; hasButton: boolean; buttonLabel?: string; isAutoSync?: boolean }[] = [];
+
+  if (taxType === "원천세") {
+    template = [
+      { label: "급여자료 수집", hasButton: true, buttonLabel: "수집", isAutoSync: true },
+      { label: "급여대장 작성", hasButton: true, buttonLabel: "작성", isAutoSync: true },
+      { label: "세무사랑 신고서", hasButton: true, buttonLabel: "변환" },
+      { label: "홈택스 신고", hasButton: true, buttonLabel: "신고" },
+      { label: "위택스 신고", hasButton: true, buttonLabel: "신고" },
+      { label: "납부서 전달", hasButton: true, buttonLabel: "전달" },
+      { label: "납부확인", hasButton: false },
+    ];
+  } else if (taxType === "법인세") {
+    template = [
+      { label: "API 자동수집", hasButton: true, buttonLabel: "수집" },
+      { label: "고객사 자료요청", hasButton: true, buttonLabel: "요청" },
+      { label: "수집완료", hasButton: false },
+      { label: "결산/재무제표", hasButton: true, buttonLabel: "작성" },
+      { label: "세무조정", hasButton: false },
+      { label: "홈택스 신고", hasButton: false },
+      { label: "납부서·보고서 전송", hasButton: true, buttonLabel: "전송" },
+    ];
+  } else if (taxType === "종합소득세") {
+    template = [
+      { label: "API 자동수집", hasButton: true, buttonLabel: "수집" },
+      { label: "고객사 자료요청", hasButton: true, buttonLabel: "요청" },
+      { label: "수집완료", hasButton: false },
+      { label: "소득금액 확정", hasButton: true, buttonLabel: "확정" },
+      { label: "세무조정/공제", hasButton: false },
+      { label: "홈택스 신고", hasButton: false },
+      { label: "납부서 전송", hasButton: true, buttonLabel: "전송" },
+    ];
+  } else if (taxType === "연말정산") {
+    template = [
+      { label: "안내문 발송", hasButton: true, buttonLabel: "발송" },
+      { label: "소득공제 자료수집", hasButton: true, buttonLabel: "수집" },
+      { label: "수집완료", hasButton: false },
+      { label: "공제항목 검토", hasButton: true, buttonLabel: "검토" },
+      { label: "정산작업", hasButton: false },
+      { label: "원천징수영수증 생성", hasButton: true, buttonLabel: "생성" },
+      { label: "고객사 전달", hasButton: true, buttonLabel: "전달" },
+    ];
+  } else {
+    // 부가세 및 기타 기본 구조
+    template = [
+      { label: "API 자동수집", hasButton: true, buttonLabel: "수집" },
+      { label: "수기자료 요청", hasButton: true, buttonLabel: "요청" },
+      { label: "수집완료", hasButton: false },
+      { label: "세무사랑 서식변환", hasButton: true, buttonLabel: "변환" },
+      { label: "장부작업", hasButton: false },
+      { label: "홈택스 신고", hasButton: false },
+      { label: "납부서·보고서 전송", hasButton: true, buttonLabel: "전송" },
+    ];
+  }
+
   return template.map((t, idx) => {
     let status: StepStatus = "pending";
     if (idx < doneCount) status = "done";
@@ -65,22 +112,22 @@ export const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 function generateMockMonths(isCorp: boolean): MonthData[] {
   const data: MonthData[] = [];
   for (let m = 1; m <= 12; m++) {
-    // 공통: 매월 원천세 필수 포함
+    // 공통: 매월 원천세 필수 포함 (미완료 상태를 잘 볼 수 있도록 초기 완료값을 0~임의로 낮춤)
     const reports: TaxReport[] = [
-      { taxType: "원천세", steps: makeSteps(m < 4 ? 7 : Math.floor(Math.random() * 4)) }
+      { taxType: "원천세", steps: makeSteps("원천세", 0) }
     ];
 
-    if (m === 2) reports.push({ taxType: "연말정산", steps: makeSteps(0) });
-    if (m === 5) reports.push({ taxType: "종합소득세", steps: makeSteps(0) });
-    if (m === 6) reports.push({ taxType: "성실신고", steps: makeSteps(0) });
+    if (m === 2) reports.push({ taxType: "연말정산", steps: makeSteps("연말정산", 0) });
+    if (m === 5) reports.push({ taxType: "종합소득세", steps: makeSteps("종합소득세", 0) });
+    if (m === 6) reports.push({ taxType: "성실신고", steps: makeSteps("성실신고", 0) });
 
     // 분기별 부가세
     if ([1, 4, 7, 10].includes(m)) {
-      reports.push({ taxType: "부가세", steps: makeSteps(m < 4 ? 7 : Math.floor(Math.random() * 4)) });
+      reports.push({ taxType: "부가세", steps: makeSteps("부가세", m < 4 ? 7 : Math.floor(Math.random() * 4)) });
     }
     // 법인은 3월 법인세 추가
     if (isCorp && m === 3) {
-      reports.push({ taxType: "법인세", steps: makeSteps(1) });
+      reports.push({ taxType: "법인세", steps: makeSteps("법인세", 1) });
     }
 
     data.push({ month: m, reports });

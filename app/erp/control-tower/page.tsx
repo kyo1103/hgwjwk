@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
 import {
   type StepStatus,
@@ -36,9 +36,30 @@ const TAX_COLORS: Record<string, { bg: string; text: string; border: string }> =
 
 /* ─────────────────────────── 서브 컴포넌트 ─────────────────────────── */
 
-function StepRow({ step, onToggle, onBtn }: { step: ReportStep; onToggle: () => void; onBtn: () => void }) {
-  const bg = step.status === "done" ? COLORS.done : step.status === "in-progress" ? COLORS.inProgress : COLORS.pending;
-  const tx = step.status === "done" ? COLORS.doneText : step.status === "in-progress" ? COLORS.inProgressText : COLORS.pendingText;
+function StepRow({ step, summary, onToggle, onBtn }: { 
+  step: ReportStep; 
+  summary?: { done: number, total: number };
+  onToggle: () => void; 
+  onBtn: () => void; 
+}) {
+  let bg = COLORS.pending;
+  let tx = COLORS.pendingText;
+  let btnBg = step.status === "pending" ? "#e2e8f0" : "rgba(255,255,255,0.3)";
+  let btnTx = step.status === "pending" ? "#64748b" : "#fff";
+
+  if (step.status === "done") {
+    bg = COLORS.done;
+    tx = COLORS.doneText;
+  } else if (step.status === "in-progress") {
+    bg = COLORS.inProgress;
+    tx = COLORS.inProgressText;
+  } else if (step.isAutoSync) {
+    bg = "#f3e8ff"; // 연한 보라색 배경
+    tx = "#7e22ce"; // 어두운 보라 텍스트
+    btnBg = "#e9d5ff";
+    btnTx = "#7e22ce";
+  }
+
   const icon = step.status === "done" ? "✓" : step.status === "in-progress" ? "▶" : "○";
 
   return (
@@ -52,23 +73,29 @@ function StepRow({ step, onToggle, onBtn }: { step: ReportStep; onToggle: () => 
         <span style={{
           fontSize: "0.63rem", fontWeight: 600, color: tx,
           whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-        }}>{step.label}</span>
+        }}>
+          {step.label}
+          {summary && <span style={{ opacity: 0.8, marginLeft: 4, fontWeight: 500 }}>({summary.done}/{summary.total})</span>}
+        </span>
       </div>
       {step.hasButton && (
         <button onClick={e => { e.stopPropagation(); onBtn(); }} style={{
           padding: "1px 6px", fontSize: "0.58rem", fontWeight: 700, border: "none", borderRadius: 3,
           cursor: "pointer", flexShrink: 0,
-          background: step.status === "pending" ? "#e2e8f0" : "rgba(255,255,255,0.3)",
-          color: step.status === "pending" ? "#64748b" : "#fff",
+          background: btnBg,
+          color: btnTx,
           transition: "all 0.15s",
-        }}>{step.buttonLabel}</button>
+        }}>
+          {step.isAutoSync && step.status === "pending" ? "자동연동 예정" : step.buttonLabel}
+        </button>
       )}
     </div>
   );
 }
 
-function TaxCard({ report, onStepToggle, onBtn }: {
+function TaxCard({ report, globalStats, onStepToggle, onBtn }: {
   report: TaxReport;
+  globalStats?: Record<string, { done: number; total: number }>;
   onStepToggle: (i: number) => void;
   onBtn: (i: number) => void;
 }) {
@@ -78,7 +105,7 @@ function TaxCard({ report, onStepToggle, onBtn }: {
   return (
     <div style={{
       border: `1.5px solid ${tc.border}`, borderRadius: 8, background: "#fff",
-      overflow: "hidden", width: 180, flexShrink: 0,
+      overflow: "hidden", width: 220, flexShrink: 0,
       boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
     }}>
       <div style={{
@@ -94,7 +121,13 @@ function TaxCard({ report, onStepToggle, onBtn }: {
       </div>
       <div style={{ padding: 4, display: "flex", flexDirection: "column", gap: 2 }}>
         {report.steps.map((s, i) => (
-          <StepRow key={i} step={s} onToggle={() => onStepToggle(i)} onBtn={() => onBtn(i)} />
+          <StepRow 
+            key={i} 
+            step={s} 
+            summary={globalStats && report.taxType === "원천세" ? globalStats[s.label] : undefined} 
+            onToggle={() => onStepToggle(i)} 
+            onBtn={() => onBtn(i)} 
+          />
         ))}
       </div>
     </div>
@@ -103,8 +136,8 @@ function TaxCard({ report, onStepToggle, onBtn }: {
 
 /* ─────────────────────────── 스타일 상수 ─────────────────────────── */
 
-const STICKY_COL_W = 200;
-const MONTH_COL_W = 420;
+const STICKY_COL_W = 260;
+const MONTH_COL_W = 500;
 
 /* ─────────────────────────── 메인 페이지 ─────────────────────────── */
 
@@ -112,7 +145,42 @@ export default function ControlTowerPage() {
   const [companies, setCompanies] = useState<Company[]>(MOCK_COMPANIES);
   const [activeRow, setActiveRow] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
   const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
+
+  const groupedCompanies = useMemo(() => {
+    const groups: Record<string, Company[]> = {};
+    companies.forEach(c => {
+      if (!groups[c.category]) groups[c.category] = [];
+      groups[c.category].push(c);
+    });
+    return groups;
+  }, [companies]);
+
+  const withholdingStats = useMemo(() => {
+    const stats: Record<string, { done: number; total: number }> = {};
+    let overallTotal = 0;
+    let overallDone = 0;
+
+    companies.forEach(c => {
+      c.months.forEach(m => {
+        m.reports.forEach(r => {
+          if (r.taxType === "원천세") {
+            overallTotal += 1;
+            const finishStep = r.steps.find(s => s.label === "납부확인");
+            if (finishStep && finishStep.status === "done") overallDone += 1;
+
+            r.steps.forEach(s => {
+              if (!stats[s.label]) stats[s.label] = { done: 0, total: 0 };
+              stats[s.label].total += 1;
+              if (s.status === "done") stats[s.label].done += 1;
+            });
+          }
+        });
+      });
+    });
+    return { steps: stats, overallTotal, overallDone };
+  }, [companies]);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -149,7 +217,7 @@ export default function ControlTowerPage() {
   };
 
   return (
-    <div style={{ padding: "28px 32px", maxWidth: 1800, margin: "0 auto" }}>
+    <div style={{ padding: "28px 16px", width: "95%", margin: "0 auto", position: "relative" }}>
       {/* Toast */}
       {toast && (
         <div style={{
@@ -166,9 +234,41 @@ export default function ControlTowerPage() {
         <h1 style={{ fontSize: "1.6rem", fontWeight: 800, color: "#0f172a", letterSpacing: "-0.03em", marginBottom: 4 }}>
           신고 관제탑
         </h1>
-        <p style={{ color: "#64748b", fontSize: "0.88rem" }}>
+        <p style={{ color: "#64748b", fontSize: "0.88rem", margin: 0 }}>
           업체별 · 월별 신고 진행 현황을 스프레드시트 형태로 관리합니다.
         </p>
+      </div>
+
+      {/* ─── 우측 화면밖 위치 고정 원천세 현황판 ─── */}
+      <div style={{
+        position: "fixed", top: 130, right: 30, zIndex: 100, width: 170,
+        display: "flex", flexDirection: "column", gap: 12, background: "#fff", padding: "16px",
+        borderRadius: 12, border: `1px solid ${COLORS.border}`, boxShadow: "0 4px 16px rgba(0,0,0,0.06)"
+      }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, borderBottom: "1px dashed #e2e8f0", paddingBottom: 10 }}>
+          <span style={{ fontSize: "0.75rem", fontWeight: 800, color: TAX_COLORS["원천세"].text }}>원천세 진행현황</span>
+          <div style={{ fontSize: "1.4rem", fontWeight: 800, color: "#0f172a", lineHeight: 1.1 }}>
+            {withholdingStats.overallDone} <span style={{ opacity: 0.4, fontSize: "0.85rem", fontWeight: 700 }}>/ {withholdingStats.overallTotal}</span>
+          </div>
+          <span style={{ fontSize: "0.6rem", color: "#64748b", fontWeight: 600 }}>(납부확인 완료 기준)</span>
+        </div>
+        
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {["급여자료 수집", "급여대장 작성", "세무사랑 신고서", "홈택스 신고", "위택스 신고", "납부서 전달", "납부확인"].map((label) => {
+            const st = withholdingStats.steps[label] || { done: 0, total: 0 };
+            const isDone = st.done === st.total && st.total > 0;
+            return (
+              <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: "0.68rem", color: "#475569", fontWeight: 600 }}>
+                  {label === "세무사랑 신고서" ? "서식변환" : label.split(" ")[label.split(" ").length - 1]}
+                </span>
+                <span style={{ fontSize: "0.75rem", fontWeight: 700, color: isDone ? COLORS.done : "#0f172a" }}>
+                  {st.done} <span style={{ opacity: 0.5, fontSize: "0.6rem" }}>/ {st.total}</span>
+                </span>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* 범례 */}
@@ -191,6 +291,8 @@ export default function ControlTowerPage() {
           </div>
         ))}
       </div>
+
+
 
       {/* ─── 스프레드시트 ─── */}
       <div style={{
@@ -254,36 +356,72 @@ export default function ControlTowerPage() {
 
             {/* ─── 바디: 업체별 행 ─── */}
             <tbody>
-              {companies.map((company, cIdx) => {
-                const isActive = activeRow === company.id;
-                const meta = INDUSTRY_META[company.category];
-                const totalSteps = company.months.reduce((s, m) => s + m.reports.reduce((s2, r) => s2 + r.steps.length, 0), 0);
-                const doneSteps = company.months.reduce((s, m) => s + m.reports.reduce((s2, r) => s2 + r.steps.filter(st => st.status === "done").length, 0), 0);
-                const pct = totalSteps > 0 ? Math.round((doneSteps / totalSteps) * 100) : 0;
+              {Object.entries(groupedCompanies).map(([category, groupList]) => {
+                const isExpanded = expandedFolders[category] ?? true;
+                const toggleFolder = () => setExpandedFolders(p => ({ ...p, [category]: !(p[category] ?? true) }));
+                const cateMeta = INDUSTRY_META[category as keyof typeof INDUSTRY_META] || { icon: "📁", color: "#64748b" };
 
                 return (
-                  <tr
-                    key={company.id}
-                    ref={el => { rowRefs.current[company.id] = el; }}
-                    style={{
-                      background: isActive ? "#f0f9ff" : cIdx % 2 === 0 ? "#fff" : "#fafbfc",
-                      transition: "background 0.2s",
-                    }}
-                  >
-                    {/* ─── 업체명 셀 (sticky) ─── */}
-                    <td
-                      onClick={() => scrollToRow(company.id)}
-                      style={{
-                        position: "sticky", left: 0, zIndex: 10,
-                        background: isActive ? "#e0f2fe" : cIdx % 2 === 0 ? "#fff" : "#fafbfc",
-                        padding: "12px 14px",
-                        borderBottom: `1px solid ${COLORS.border}`,
+                  <React.Fragment key={category}>
+                    {/* 그룹 헤더(폴더) 행 */}
+                    <tr onClick={toggleFolder} style={{ cursor: "pointer", background: "#f8fafc", transition: "background 0.2s" }}>
+                      <td style={{
+                        position: "sticky", left: 0, zIndex: 30,
+                        background: "#e2e8f0", padding: "12px 16px",
+                        borderBottom: `2px solid ${COLORS.border}`,
                         borderRight: `2px solid ${COLORS.border}`,
-                        cursor: "pointer",
-                        transition: "background 0.2s",
-                        verticalAlign: "top",
-                      }}
-                    >
+                        fontWeight: 800, color: "#0f172a",
+                        display: "flex", alignItems: "center", gap: 8
+                      }}>
+                        <div style={{
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          width: 20, height: 20, borderRadius: 4, background: "#cbd5e1",
+                          color: "#475569", fontSize: "0.8rem",
+                          transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s"
+                        }}>▶</div>
+                        <span style={{ fontSize: "1.1rem" }}>{cateMeta.icon}</span>
+                        <span>{category}</span>
+                        <span style={{ 
+                          background: "#fff", padding: "2px 8px", borderRadius: 99, 
+                          fontSize: "0.75rem", color: "#475569", fontWeight: 700 
+                        }}>
+                          {groupList.length}
+                        </span>
+                      </td>
+                      <td colSpan={MONTHS.length} style={{ borderBottom: `2px solid ${COLORS.border}`, background: "#f8fafc" }} />
+                    </tr>
+                    
+                    {/* 업체 행 (열림 상태일 때) */}
+                    {isExpanded && groupList.map((company, cIdx) => {
+                      const isActive = activeRow === company.id;
+                      const meta = INDUSTRY_META[company.category as keyof typeof INDUSTRY_META];
+                      const totalSteps = company.months.reduce((s, m) => s + m.reports.reduce((s2, r) => s2 + r.steps.length, 0), 0);
+                      const doneSteps = company.months.reduce((s, m) => s + m.reports.reduce((s2, r) => s2 + r.steps.filter(st => st.status === "done").length, 0), 0);
+                      const pct = totalSteps > 0 ? Math.round((doneSteps / totalSteps) * 100) : 0;
+
+                      return (
+                        <tr
+                          key={company.id}
+                          ref={el => { rowRefs.current[company.id] = el; }}
+                          style={{
+                            background: isActive ? "#f0f9ff" : cIdx % 2 === 0 ? "#fff" : "#fafbfc",
+                            transition: "background 0.2s",
+                          }}
+                        >
+                          {/* ─── 업체명 셀 (sticky) + 들여쓰기 ─── */}
+                          <td
+                            onClick={() => scrollToRow(company.id)}
+                            style={{
+                              position: "sticky", left: 0, zIndex: 10,
+                              background: isActive ? "#e0f2fe" : cIdx % 2 === 0 ? "#fff" : "#fafbfc",
+                              padding: "12px 14px 12px 34px",
+                              borderBottom: `1px solid ${COLORS.border}`,
+                              borderRight: `2px solid ${COLORS.border}`,
+                              cursor: "pointer",
+                              transition: "background 0.2s",
+                              verticalAlign: "top",
+                            }}
+                          >
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
                         <span style={{ fontSize: "0.85rem" }}>{meta.icon}</span>
                         <div>
@@ -326,12 +464,13 @@ export default function ControlTowerPage() {
                           {monthData && monthData.reports.length > 0 ? (
                             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                               {monthData.reports.map((report, rIdx) => (
-                                <TaxCard
-                                  key={rIdx}
-                                  report={report}
-                                  onStepToggle={(sIdx) => handleStepToggle(company.id, monthIdx, rIdx, sIdx)}
-                                  onBtn={(sIdx) => handleBtn(company.shortName, report.taxType, report.steps[sIdx].label)}
-                                />
+                                  <TaxCard
+                                    key={rIdx}
+                                    report={report}
+                                    globalStats={withholdingStats.steps}
+                                    onStepToggle={(sIdx) => handleStepToggle(company.id, monthIdx, rIdx, sIdx)}
+                                    onBtn={(sIdx) => handleBtn(company.shortName, report.taxType, report.steps[sIdx].label)}
+                                  />
                               ))}
                             </div>
                           ) : (
@@ -344,6 +483,9 @@ export default function ControlTowerPage() {
                       );
                     })}
                   </tr>
+                );
+              })}
+                  </React.Fragment>
                 );
               })}
             </tbody>
