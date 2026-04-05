@@ -45,12 +45,13 @@ import {
 } from "@/components/workspace/WorkspaceBits";
 import ControlTowerPage from "@/app/erp/control-tower/page";
 import ReportPage from "@/app/erp/report/page";
+import CompanyInfoPage from "@/app/erp/company-info/page";
 
 export default function WorkspaceDashboard({ session }: { session: WorkspaceSession }) {
   const router = useRouter();
   const { data, isLoading, error, refresh } = useERPState();
   const [selectedClientId, setSelectedClientId] = useState(session.clientId ?? "");
-  const [adminTab, setAdminTab] = useState<"labor" | "tax">("labor");
+  const [adminTab, setAdminTab] = useState<"info" | "labor" | "tax">("info");
   const [jobFlash, setJobFlash] = useState<FlashMessage>(null);
   const [jobActionKey, setJobActionKey] = useState<string | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -289,6 +290,13 @@ export default function WorkspaceDashboard({ session }: { session: WorkspaceSess
                 <strong className={styles.adminBrandName}>관리자 운영 워크스페이스</strong>
               </div>
               <nav className={styles.adminTabNav}>
+                <button
+                  type="button"
+                  className={`${styles.adminTabBtn} ${adminTab === "info" ? styles.adminTabBtnActive : ""}`}
+                  onClick={() => setAdminTab("info")}
+                >
+                  기본정보
+                </button>
                 <button
                   type="button"
                   className={`${styles.adminTabBtn} ${adminTab === "labor" ? styles.adminTabBtnActive : ""}`}
@@ -546,8 +554,8 @@ function AdminView(props: {
   };
   runningJobsCount: number;
   onRun: (scope: ChannelKey[], label: string) => void;
-  adminTab: "labor" | "tax";
-  setAdminTab: (tab: "labor" | "tax") => void;
+  adminTab: "info" | "labor" | "tax";
+  setAdminTab: (tab: "info" | "labor" | "tax") => void;
 }) {
   const [taxTab, setTaxTab] = useState<"business" | "consulting">("business");
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
@@ -639,7 +647,9 @@ function AdminView(props: {
         </div>
       </section>
 
-      {props.adminTab === "labor" ? (
+      {props.adminTab === "info" ? (
+        <CompanyInfoPage />
+      ) : props.adminTab === "labor" ? (
         <section className={styles.laborBoardShell}>
           <section className={styles.companyDatabaseSection}>
             <div className={styles.companyListBar}>
