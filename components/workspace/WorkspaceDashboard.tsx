@@ -47,6 +47,76 @@ import ControlTowerPage from "@/app/erp/control-tower/page";
 import ReportPage from "@/app/erp/report/page";
 import CompanyInfoPage from "@/app/erp/company-info/page";
 
+/* ─────────────────────────── 발급센터 하위 컴포넌트 ─────────────────────────── */
+type IssuanceRole = "all" | "admin";
+interface IssuanceItem {
+  id: string;
+  label: string;
+  description: string;
+  role: IssuanceRole;
+}
+
+const ISSUANCE_ITEMS: IssuanceItem[] = [
+  // 서류 목록은 추후 구체 항목을 사용자가 제공 예정
+  { id: "placeholder-1", label: "일반 서류 1", description: "설명이 들어갑니다.", role: "all" },
+  { id: "placeholder-2", label: "일반 서류 2", description: "설명이 들어갑니다.", role: "all" },
+  { id: "placeholder-3", label: "관리자 전용 서류 1", description: "관리자 전용 서류 설명입니다.", role: "admin" },
+];
+
+function IssuanceCenterPanel() {
+  const currentRole: IssuanceRole = "admin"; // 개발중엔 전체 표시
+  const list = ISSUANCE_ITEMS.filter((i) => i.role === "all" || currentRole === "admin");
+
+  return (
+    <div style={{ padding: "32px", background: "#fff", minHeight: "60vh" }}>
+      <div style={{ marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+        <div>
+          <h2 style={{ fontSize: "1.4rem", fontWeight: 800, color: "#0f172a", marginBottom: 4 }}>발급센터</h2>
+          <p style={{ color: "#64748b", fontSize: "0.88rem", margin: 0 }}>서류 발급 및 신청 내역을 관리합니다.</p>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+        {list.map((item) => (
+          <div key={item.id} style={{
+            border: "1px solid #e2e8f0", borderRadius: 10, padding: 20,
+            background: "#fff", display: "flex", flexDirection: "column", gap: 12,
+            boxShadow: "0 1px 3px rgba(0,0,0,0.02)"
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div>
+                <h4 style={{ fontSize: "0.95rem", fontWeight: 700, color: "#1e293b", margin: "0 0 6px 0" }}>
+                  {item.label}
+                </h4>
+                <p style={{ fontSize: "0.8rem", color: "#64748b", margin: 0, lineHeight: 1.4 }}>
+                  {item.description}
+                </p>
+              </div>
+              {item.role === "admin" && (
+                <span style={{ fontSize: "0.65rem", padding: "3px 6px", background: "#fef3c7", color: "#b45309", borderRadius: 4, fontWeight: 700 }}>
+                  관리자
+                </span>
+              )}
+            </div>
+            <button style={{
+              marginTop: "auto", background: "#f1f5f9", border: "none", padding: "8px",
+              borderRadius: 6, fontSize: "0.8rem", fontWeight: 600, color: "#475569",
+              cursor: "pointer", transition: "all 0.2s"
+            }}>
+              발급 진행하기
+            </button>
+          </div>
+        ))}
+      </div>
+      
+      <div style={{ marginTop: 24, padding: "16px", background: "#f8fafc", borderRadius: 6, textAlign: "center", fontSize: "0.8rem", color: "#94a3b8" }}>
+        자세한 서류 목록은 추후 반영 예정입니다.
+      </div>
+    </div>
+  );
+}
+
+
 export default function WorkspaceDashboard({ session }: { session: WorkspaceSession }) {
   const router = useRouter();
   const { data, isLoading, error, refresh } = useERPState();
@@ -557,7 +627,7 @@ function AdminView(props: {
   adminTab: "info" | "labor" | "tax";
   setAdminTab: (tab: "info" | "labor" | "tax") => void;
 }) {
-  const [taxTab, setTaxTab] = useState<"business" | "consulting">("business");
+  const [taxTab, setTaxTab] = useState<"business" | "consulting" | "issuance">("business");
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
   const [companyQuery, setCompanyQuery] = useState("");
   const [employeeQuery, setEmployeeQuery] = useState("");
@@ -1037,16 +1107,24 @@ function AdminView(props: {
             >
               컨설팅
             </button>
+            <button
+              style={{ padding: "16px 0", fontSize: "0.95rem", fontWeight: taxTab === "issuance" ? 800 : 600, color: taxTab === "issuance" ? "#2563eb" : "#64748b", borderBottom: taxTab === "issuance" ? "3px solid #2563eb" : "3px solid transparent", background: "transparent", border: "none", cursor: "pointer", transition: "all 0.2s" }}
+              onClick={() => setTaxTab("issuance")}
+            >
+              발급센터
+            </button>
           </nav>
           <div>
             {taxTab === "business" && <ControlTowerPage />}
             {taxTab === "consulting" && <ReportPage />}
+            {taxTab === "issuance" && <IssuanceCenterPanel />}
           </div>
         </section>
       )}
     </>
   );
 }
+
 
 function formatDate(value: string) {
   return value.replaceAll("-", ".");
