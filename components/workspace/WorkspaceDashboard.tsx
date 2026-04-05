@@ -47,72 +47,327 @@ import ControlTowerPage from "@/app/erp/control-tower/page";
 import ReportPage from "@/app/erp/report/page";
 import CompanyInfoPage from "@/app/erp/company-info/page";
 
-/* ─────────────────────────── 발급센터 하위 컴포넌트 ─────────────────────────── */
+/* ─────────────────────────── 발급센터 (셀프발급기) ─────────────────────────── */
 type IssuanceRole = "all" | "admin";
-interface IssuanceItem {
+type IssuanceSource = "홈택스" | "위택스" | "4대보험포털" | "자체";
+
+interface CertDoc {
   id: string;
-  label: string;
-  description: string;
+  name: string;
+  source: IssuanceSource;
+  purpose: string;
   role: IssuanceRole;
 }
 
-const ISSUANCE_ITEMS: IssuanceItem[] = [
-  // 서류 목록은 추후 구체 항목을 사용자가 제공 예정
-  { id: "placeholder-1", label: "일반 서류 1", description: "설명이 들어갑니다.", role: "all" },
-  { id: "placeholder-2", label: "일반 서류 2", description: "설명이 들어갑니다.", role: "all" },
-  { id: "placeholder-3", label: "관리자 전용 서류 1", description: "관리자 전용 서류 설명입니다.", role: "admin" },
+interface FormDoc {
+  id: string;
+  name: string;
+  category: string;
+  role: IssuanceRole;
+  fileType: string;
+}
+
+interface IssuanceLog {
+  id: string;
+  docName: string;
+  user: string;
+  date: string;
+  type: "민원증명" | "서식";
+}
+
+const SOURCE_BADGE: Record<IssuanceSource, { bg: string; text: string; border: string }> = {
+  "홈택스": { bg: "#eff6ff", text: "#2563eb", border: "#bfdbfe" },
+  "위택스": { bg: "#f0fdf4", text: "#16a34a", border: "#bbf7d0" },
+  "4대보험포털": { bg: "#fdf4ff", text: "#a855f7", border: "#e9d5ff" },
+  "자체": { bg: "#f8fafc", text: "#64748b", border: "#e2e8f0" },
+};
+
+const CERT_DOCS: CertDoc[] = [
+  { id: "c1",  name: "납세증명서 (국세완납증명)",        source: "홈택스",      purpose: "대출·입찰·관공서 제출",            role: "all" },
+  { id: "c2",  name: "납세증명서 (지방세)",             source: "위택스",      purpose: "대출·입찰·관공서 제출",            role: "all" },
+  { id: "c3",  name: "사업자등록증명",                  source: "홈택스",      purpose: "거래처 제출·계약 시",              role: "all" },
+  { id: "c4",  name: "소득금액증명",                    source: "홈택스",      purpose: "대출·비자·임대차",                role: "all" },
+  { id: "c5",  name: "4대보험 완납증명",                source: "4대보험포털", purpose: "입찰·관공서",                     role: "all" },
+  { id: "c6",  name: "부가가치세 과세표준증명",          source: "홈택스",      purpose: "대출·매출 증빙",                  role: "all" },
+  { id: "c7",  name: "표준재무제표증명",                source: "홈택스",      purpose: "결산 확인·여신 심사",              role: "admin" },
+  { id: "c8",  name: "납부내역증명 (납세사실증명)",      source: "홈택스",      purpose: "특정 세목 납부 확인",              role: "admin" },
+  { id: "c9",  name: "부가세 면세사업자 수입금액증명",   source: "홈택스",      purpose: "면세 매출 확인 (병의원·학원)",     role: "admin" },
+  { id: "c10", name: "폐업사실증명",                    source: "홈택스",      purpose: "폐업 처리 확인",                  role: "admin" },
+  { id: "c11", name: "과표증명원",                      source: "홈택스",      purpose: "세무조정·경정청구",                role: "admin" },
+  { id: "c12", name: "원천징수이행상황신고서",           source: "홈택스",      purpose: "원천세 신고 확인",                role: "admin" },
+  { id: "c13", name: "갑종근로소득 원천징수영수증",      source: "홈택스",      purpose: "연말정산 결과",                   role: "admin" },
+];
+
+const FORM_DOCS: FormDoc[] = [
+  { id: "f1",  name: "표준근로계약서",         category: "계약서",   role: "all",   fileType: "HWP" },
+  { id: "f2",  name: "일용근로계약서",         category: "계약서",   role: "all",   fileType: "HWP" },
+  { id: "f3",  name: "연차사용촉진 통보서",    category: "근태",     role: "all",   fileType: "HWP" },
+  { id: "f4",  name: "퇴직금 중간정산 신청서", category: "퇴직",     role: "all",   fileType: "HWP" },
+  { id: "f5",  name: "사직서",                 category: "퇴직",     role: "all",   fileType: "HWP" },
+  { id: "f6",  name: "급여명세서 서식",        category: "급여",     role: "all",   fileType: "XLSX" },
+  { id: "f7",  name: "근태기록부",             category: "근태",     role: "all",   fileType: "XLSX" },
+  { id: "f8",  name: "기장대리 계약서",        category: "계약서",   role: "admin", fileType: "HWP" },
+  { id: "f9",  name: "세무조정 계약서",        category: "계약서",   role: "admin", fileType: "HWP" },
+  { id: "f10", name: "수임자료 인수인계서",    category: "내부",     role: "admin", fileType: "HWP" },
+];
+
+const MOCK_LOGS: IssuanceLog[] = [
+  { id: "l1", docName: "납세증명서 (국세완납증명)", user: "김대표", date: "2025-04-03 14:22", type: "민원증명" },
+  { id: "l2", docName: "사업자등록증명",           user: "박경리",  date: "2025-04-02 09:45", type: "민원증명" },
+  { id: "l3", docName: "표준근로계약서",           user: "이세무",  date: "2025-04-01 16:30", type: "서식" },
+  { id: "l4", docName: "소득금액증명",             user: "김대표",  date: "2025-03-28 11:10", type: "민원증명" },
 ];
 
 function IssuanceCenterPanel() {
-  const currentRole: IssuanceRole = "admin"; // 개발중엔 전체 표시
-  const list = ISSUANCE_ITEMS.filter((i) => i.role === "all" || currentRole === "admin");
+  const [subTab, setSubTab] = useState<"cert" | "form">("cert");
+  const [toast, setToast] = useState<string | null>(null);
+  const [showLog, setShowLog] = useState(false);
+  const currentRole: IssuanceRole = "admin";
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2500);
+  };
+
+  const visibleCerts = CERT_DOCS.filter(d => d.role === "all" || currentRole === "admin");
+  const visibleForms = FORM_DOCS.filter(d => d.role === "all" || currentRole === "admin");
+  const formCategories = [...new Set(visibleForms.map(f => f.category))];
+
+  const certCustomer = visibleCerts.filter(d => d.role === "all");
+  const certAdmin = visibleCerts.filter(d => d.role === "admin");
 
   return (
-    <div style={{ padding: "32px", background: "#fff", minHeight: "60vh" }}>
-      <div style={{ marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+    <div style={{ padding: "28px 36px", background: "#fff", minHeight: "70vh", position: "relative" }}>
+
+      {/* 토스트 */}
+      {toast && (
+        <div style={{
+          position: "fixed", top: 24, right: 24, zIndex: 9999,
+          background: "#0f172a", color: "#fff", padding: "12px 22px",
+          borderRadius: 10, fontSize: "0.85rem", fontWeight: 600,
+          boxShadow: "0 8px 24px rgba(0,0,0,0.2)", animation: "fadeInDown 0.3s ease"
+        }}>{toast}</div>
+      )}
+
+      {/* 헤더 */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 20 }}>
         <div>
-          <h2 style={{ fontSize: "1.4rem", fontWeight: 800, color: "#0f172a", marginBottom: 4 }}>발급센터</h2>
-          <p style={{ color: "#64748b", fontSize: "0.88rem", margin: 0 }}>서류 발급 및 신청 내역을 관리합니다.</p>
+          <h2 style={{ fontSize: "1.4rem", fontWeight: 800, color: "#0f172a", marginBottom: 4 }}>서류 발급센터</h2>
+          <p style={{ color: "#64748b", fontSize: "0.85rem", margin: 0 }}>필요한 서류를 즉시 발급하거나 서식을 다운로드할 수 있습니다.</p>
         </div>
+        <button
+          onClick={() => setShowLog(v => !v)}
+          style={{
+            background: showLog ? "#1e293b" : "#fff", color: showLog ? "#fff" : "#475569",
+            border: "1px solid #cbd5e1", borderRadius: 8, padding: "8px 16px",
+            fontSize: "0.8rem", fontWeight: 700, cursor: "pointer", transition: "all 0.2s"
+          }}
+        >{showLog ? "목록 보기" : "📋 발급 이력"}</button>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
-        {list.map((item) => (
-          <div key={item.id} style={{
-            border: "1px solid #e2e8f0", borderRadius: 10, padding: 20,
-            background: "#fff", display: "flex", flexDirection: "column", gap: 12,
-            boxShadow: "0 1px 3px rgba(0,0,0,0.02)"
+      {/* 발급 이력 모드 */}
+      {showLog ? (
+        <div>
+          <div style={{
+            border: "1px solid #e2e8f0", borderRadius: 10, overflow: "hidden"
           }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-              <div>
-                <h4 style={{ fontSize: "0.95rem", fontWeight: 700, color: "#1e293b", margin: "0 0 6px 0" }}>
-                  {item.label}
-                </h4>
-                <p style={{ fontSize: "0.8rem", color: "#64748b", margin: 0, lineHeight: 1.4 }}>
-                  {item.description}
-                </p>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem" }}>
+              <thead>
+                <tr style={{ background: "#f8fafc" }}>
+                  <th style={{ padding: "12px 16px", textAlign: "left", fontWeight: 800, color: "#475569", borderBottom: "2px solid #e2e8f0" }}>서류명</th>
+                  <th style={{ padding: "12px 16px", textAlign: "center", fontWeight: 800, color: "#475569", borderBottom: "2px solid #e2e8f0", width: 80 }}>구분</th>
+                  <th style={{ padding: "12px 16px", textAlign: "center", fontWeight: 800, color: "#475569", borderBottom: "2px solid #e2e8f0", width: 100 }}>발급자</th>
+                  <th style={{ padding: "12px 16px", textAlign: "center", fontWeight: 800, color: "#475569", borderBottom: "2px solid #e2e8f0", width: 160 }}>일시</th>
+                </tr>
+              </thead>
+              <tbody>
+                {MOCK_LOGS.map(log => (
+                  <tr key={log.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                    <td style={{ padding: "12px 16px", fontWeight: 600, color: "#0f172a" }}>{log.docName}</td>
+                    <td style={{ padding: "12px 16px", textAlign: "center" }}>
+                      <span style={{
+                        fontSize: "0.7rem", fontWeight: 700, padding: "3px 8px", borderRadius: 4,
+                        background: log.type === "민원증명" ? "#eff6ff" : "#f0fdf4",
+                        color: log.type === "민원증명" ? "#2563eb" : "#16a34a"
+                      }}>{log.type}</span>
+                    </td>
+                    <td style={{ padding: "12px 16px", textAlign: "center", color: "#475569", fontWeight: 600 }}>{log.user}</td>
+                    <td style={{ padding: "12px 16px", textAlign: "center", color: "#94a3b8", fontFamily: "monospace", fontSize: "0.78rem" }}>{log.date}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* 서브탭 */}
+          <div style={{ display: "flex", gap: 0, marginBottom: 24, borderBottom: "2px solid #e2e8f0" }}>
+            {([
+              { key: "cert" as const, label: "민원증명 발급", count: visibleCerts.length },
+              { key: "form" as const, label: "서식 자판기", count: visibleForms.length },
+            ]).map(t => (
+              <button key={t.key}
+                onClick={() => setSubTab(t.key)}
+                style={{
+                  padding: "12px 24px", fontSize: "0.88rem", fontWeight: subTab === t.key ? 800 : 600,
+                  color: subTab === t.key ? "#2563eb" : "#64748b",
+                  borderBottom: subTab === t.key ? "3px solid #2563eb" : "3px solid transparent",
+                  background: "transparent", border: "none", cursor: "pointer",
+                  marginBottom: -2, transition: "all 0.2s"
+                }}
+              >
+                {t.label}
+                <span style={{
+                  marginLeft: 6, fontSize: "0.7rem", fontWeight: 700, padding: "2px 7px",
+                  borderRadius: 10, background: subTab === t.key ? "#eff6ff" : "#f1f5f9",
+                  color: subTab === t.key ? "#2563eb" : "#94a3b8"
+                }}>{t.count}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* ───── 민원증명 발급 탭 ───── */}
+          {subTab === "cert" && (
+            <div>
+              {/* 고객용 */}
+              <div style={{ marginBottom: 28 }}>
+                <h3 style={{ fontSize: "0.85rem", fontWeight: 800, color: "#334155", marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ width: 4, height: 14, background: "#2563eb", borderRadius: 2 }} />
+                  고객용 (고객사 화면에서도 노출)
+                  <span style={{ fontSize: "0.7rem", color: "#94a3b8", fontWeight: 600 }}>({certCustomer.length})</span>
+                </h3>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+                  {certCustomer.map(doc => (
+                    <CertCard key={doc.id} doc={doc} onRequest={() => showToast(`"${doc.name}" 발급 준비 중입니다.`)} />
+                  ))}
+                </div>
               </div>
-              {item.role === "admin" && (
-                <span style={{ fontSize: "0.65rem", padding: "3px 6px", background: "#fef3c7", color: "#b45309", borderRadius: 4, fontWeight: 700 }}>
-                  관리자
-                </span>
+
+              {/* 관리자용 */}
+              {certAdmin.length > 0 && (
+                <div>
+                  <h3 style={{ fontSize: "0.85rem", fontWeight: 800, color: "#334155", marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ width: 4, height: 14, background: "#f59e0b", borderRadius: 2 }} />
+                    관리자 전용 (대표세무사만 노출)
+                    <span style={{ fontSize: "0.65rem", padding: "2px 8px", background: "#fef3c7", color: "#b45309", borderRadius: 4, fontWeight: 700 }}>🔒 ADMIN</span>
+                    <span style={{ fontSize: "0.7rem", color: "#94a3b8", fontWeight: 600 }}>({certAdmin.length})</span>
+                  </h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+                    {certAdmin.map(doc => (
+                      <CertCard key={doc.id} doc={doc} onRequest={() => showToast(`"${doc.name}" 발급 준비 중입니다.`)} />
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
-            <button style={{
-              marginTop: "auto", background: "#f1f5f9", border: "none", padding: "8px",
-              borderRadius: 6, fontSize: "0.8rem", fontWeight: 600, color: "#475569",
-              cursor: "pointer", transition: "all 0.2s"
-            }}>
-              발급 진행하기
-            </button>
-          </div>
-        ))}
-      </div>
-      
-      <div style={{ marginTop: 24, padding: "16px", background: "#f8fafc", borderRadius: 6, textAlign: "center", fontSize: "0.8rem", color: "#94a3b8" }}>
-        자세한 서류 목록은 추후 반영 예정입니다.
-      </div>
+          )}
+
+          {/* ───── 서식 자판기 탭 ───── */}
+          {subTab === "form" && (
+            <div>
+              {/* 업로드 버튼 (관리자만) */}
+              {currentRole === "admin" && (
+                <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
+                  <button
+                    onClick={() => showToast("커스텀 서식 업로드 기능은 준비 중입니다.")}
+                    style={{
+                      background: "#2563eb", color: "#fff", border: "none", padding: "8px 18px",
+                      borderRadius: 8, fontSize: "0.8rem", fontWeight: 700, cursor: "pointer"
+                    }}
+                  >+ 서식 업로드</button>
+                </div>
+              )}
+
+              {formCategories.map(cat => {
+                const items = visibleForms.filter(f => f.category === cat);
+                return (
+                  <div key={cat} style={{ marginBottom: 24 }}>
+                    <h3 style={{ fontSize: "0.85rem", fontWeight: 800, color: "#334155", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+                      <div style={{ width: 4, height: 14, background: "#2563eb", borderRadius: 2 }} />
+                      {cat}
+                      <span style={{ fontSize: "0.7rem", color: "#94a3b8", fontWeight: 600 }}>({items.length})</span>
+                    </h3>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+                      {items.map(f => (
+                        <button key={f.id}
+                          onClick={() => showToast(`"${f.name}" 다운로드 준비 중입니다.`)}
+                          style={{
+                            display: "flex", alignItems: "center", gap: 14,
+                            padding: "16px 18px", background: "#fff", border: "1px solid #e2e8f0",
+                            borderRadius: 10, cursor: "pointer", transition: "all 0.15s",
+                            textAlign: "left", width: "100%"
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.borderColor = "#2563eb"; e.currentTarget.style.boxShadow = "0 2px 8px rgba(37,99,235,0.08)"; }}
+                          onMouseLeave={e => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.boxShadow = "none"; }}
+                        >
+                          <span style={{ fontSize: "1.6rem", flexShrink: 0 }}>📑</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "#0f172a", marginBottom: 3 }}>
+                              {f.name}
+                              {f.role === "admin" && (
+                                <span style={{ marginLeft: 6, fontSize: "0.6rem", fontWeight: 800, background: "#fef3c7", color: "#b45309", padding: "2px 5px", borderRadius: 3 }}>관리자</span>
+                              )}
+                            </div>
+                            <div style={{ fontSize: "0.72rem", color: "#94a3b8", fontWeight: 600 }}>
+                              {f.fileType} · 클릭하여 다운로드
+                            </div>
+                          </div>
+                          <span style={{ fontSize: "0.85rem", color: "#cbd5e1" }}>⬇</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
     </div>
+  );
+}
+
+function CertCard({ doc, onRequest }: { doc: CertDoc; onRequest: () => void }) {
+  const badge = SOURCE_BADGE[doc.source];
+  return (
+    <button
+      onClick={onRequest}
+      style={{
+        display: "flex", flexDirection: "column", gap: 10,
+        padding: "18px", background: "#fff", border: "1px solid #e2e8f0",
+        borderRadius: 10, cursor: "pointer", transition: "all 0.15s",
+        textAlign: "left", width: "100%",
+      }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = badge.text; e.currentTarget.style.boxShadow = `0 2px 10px ${badge.text}15`; }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.boxShadow = "none"; }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div style={{ fontSize: "0.88rem", fontWeight: 700, color: "#0f172a", lineHeight: 1.35, flex: 1 }}>
+          {doc.name}
+        </div>
+        <div style={{ display: "flex", gap: 4, flexShrink: 0, marginLeft: 8 }}>
+          {doc.role === "admin" && (
+            <span style={{ fontSize: "0.58rem", fontWeight: 800, padding: "2px 5px", background: "#fef3c7", color: "#b45309", borderRadius: 3 }}>🔒</span>
+          )}
+          <span style={{
+            fontSize: "0.65rem", fontWeight: 700, padding: "3px 8px", borderRadius: 4,
+            background: badge.bg, color: badge.text, border: `1px solid ${badge.border}`,
+            whiteSpace: "nowrap"
+          }}>{doc.source}</span>
+        </div>
+      </div>
+      <div style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: 500, lineHeight: 1.3 }}>
+        {doc.purpose}
+      </div>
+      <div style={{
+        marginTop: "auto", background: "#f8fafc", border: "1px solid #e2e8f0",
+        borderRadius: 6, padding: "6px 0", textAlign: "center",
+        fontSize: "0.78rem", fontWeight: 700, color: "#475569"
+      }}>
+        발급 요청
+      </div>
+    </button>
   );
 }
 
