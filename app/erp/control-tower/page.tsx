@@ -47,48 +47,77 @@ function TaxCard({ report, globalStats, onStepToggle, onBtn, onMockConfirm }: {
 
   // 목업용 상태
   const [step1Done, setStep1Done] = useState(false);
+  const [step2Done, setStep2Done] = useState(false);
   const [step3Done, setStep3Done] = useState(false);
 
-  // 원천세 기준으로 텍스트 설정 (다른 세목도 비슷하게 구성)
-  let btn1Label = "API 수집 요청";
+  let btn1Label = "자료수집";
+  let btn2Label: string | null = "자료요청";
   let labelText = `${report.taxType} 작업중`;
-  let btn2Label = "납부서 전송";
+  let btn3Label = "전송";
 
   if (report.taxType === "원천세") {
-    btn1Label = "급여 핑";
-    labelText = "원천세 작업중";
-    btn2Label = "납부서 톡";
-  } else if (report.taxType === "법인세" || report.taxType === "종합소득세") {
-    btn1Label = "수집 요청";
-    btn2Label = "신고서 전송";
+    btn1Label = "급여자료 요청";
+    btn2Label = null;
+    labelText = "급여·원천세 작업중";
+    btn3Label = "납부서 전달";
+  } else if (report.taxType === "법인세") {
+    btn1Label = "자료수집";
+    btn2Label = "고객사 자료요청";
+    labelText = "결산·세무조정 작업중";
+    btn3Label = "납부서·보고서 전송";
+  } else if (report.taxType === "종합소득세") {
+    btn1Label = "자료수집";
+    btn2Label = "고객사 자료요청";
+    labelText = "소득세 작업중";
+    btn3Label = "납부서 전송";
   } else if (report.taxType === "연말정산") {
-    btn1Label = "안내 톡";
-    btn2Label = "영수증 전송";
+    btn1Label = "안내문 발송";
+    btn2Label = "소득공제 자료 요청";
+    labelText = "정산작업중";
+    btn3Label = "원천징수영수증 전달";
   } else if (report.taxType === "부가세") {
-    btn1Label = "자료 핑";
-    labelText = "장부·부가세 작업중";
-    btn2Label = "납부서 톡";
+    btn1Label = "자료수집";
+    btn2Label = "수기자료 요청";
+    labelText = "세무사랑 작업중";
+    btn3Label = "납부서·보고서 전송";
   }
 
-  const handleBtn1 = () => {
-    if (step1Done) return;
+  const handleAction = (label: string, done: boolean, setDone: (v: boolean) => void) => {
+    if (done) return;
     if (onMockConfirm) {
-      onMockConfirm(btn1Label, () => setStep1Done(true));
+      onMockConfirm(label, () => setDone(true));
     } else {
-      setStep1Done(true);
+      setDone(true);
     }
   };
 
-  const handleBtn2 = () => {
-    if (step3Done) return;
-    if (onMockConfirm) {
-      onMockConfirm(btn2Label, () => setStep3Done(true));
-    } else {
-      setStep3Done(true);
-    }
-  };
+  const isAllDone = btn2Label ? (step1Done && step2Done && step3Done) : (step1Done && step3Done);
 
-  // 기존 컴팩트한 카드 높이를 맞추기 위해 170px 넓이, 작은 폰트 적용
+  const PillButton = ({ label, done, onClick }: { label: string, done: boolean, onClick: () => void }) => (
+    <button
+      onClick={onClick}
+      style={{
+        padding: "4px 10px", fontSize: "0.68rem", fontWeight: 700,
+        borderRadius: 999, border: done ? "none" : `1px solid ${tc.border}`,
+        background: done ? tc.text : tc.bg,
+        color: done ? "#fff" : tc.text,
+        cursor: done ? "default" : "pointer",
+        transition: "all 0.2s",
+        display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%",
+        boxShadow: done ? `0 1px 4px ${tc.text}40` : "none"
+      }}
+      onMouseEnter={e => {
+        if (!done) e.currentTarget.style.filter = "brightness(0.95)";
+      }}
+      onMouseLeave={e => {
+        if (!done) e.currentTarget.style.filter = "none";
+      }}
+    >
+      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+      {done ? <span style={{ fontSize: "0.65rem", flexShrink: 0, marginLeft: 4 }}>✓</span> : <span style={{ fontSize: "0.65rem", opacity: 0.7, flexShrink: 0, marginLeft: 4 }}>→</span>}
+    </button>
+  );
+
   return (
     <div style={{
       border: `1.5px solid ${tc.border}`, borderRadius: 8, background: "#fff",
@@ -103,7 +132,7 @@ function TaxCard({ report, globalStats, onStepToggle, onBtn, onMockConfirm }: {
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
            <span style={{ fontSize: "0.72rem", fontWeight: 800, color: tc.text }}>{report.taxType}</span>
-           {(step1Done && step3Done) ? (
+           {isAllDone ? (
              <span style={{ fontSize: "0.55rem", fontWeight: 800, color: "#fff", background: tc.text, padding: "1px 5px", borderRadius: 4 }}>
                완료
              </span>
@@ -115,39 +144,19 @@ function TaxCard({ report, globalStats, onStepToggle, onBtn, onMockConfirm }: {
         </div>
       </div>
 
-      <div style={{ padding: "8px", display: "flex", flexDirection: "column", gap: 6, flex: 1, justifyContent: "center" }}>
+      <div style={{ padding: "8px", display: "flex", flexDirection: "column", gap: 4, flex: 1, justifyContent: "center" }}>
         
-        {/* ① 버튼 (Pill) */}
-        <button
-          onClick={handleBtn1}
-          style={{
-            padding: "4px 10px", fontSize: "0.68rem", fontWeight: 700,
-            borderRadius: 999, border: step1Done ? "none" : `1px solid ${tc.border}`,
-            background: step1Done ? tc.text : tc.bg,
-            color: step1Done ? "#fff" : tc.text,
-            cursor: step1Done ? "default" : "pointer",
-            transition: "all 0.2s",
-            display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%",
-            boxShadow: step1Done ? `0 1px 4px ${tc.text}40` : "none"
-          }}
-          onMouseEnter={e => {
-            if (!step1Done) e.currentTarget.style.filter = "brightness(0.95)";
-          }}
-          onMouseLeave={e => {
-            if (!step1Done) e.currentTarget.style.filter = "none";
-          }}
-        >
-          <span>{btn1Label}</span>
-          {step1Done ? <span style={{ fontSize: "0.65rem" }}>✓</span> : <span style={{ fontSize: "0.65rem", opacity: 0.7 }}>→</span>}
-        </button>
+        <PillButton label={btn1Label} done={step1Done} onClick={() => handleAction(btn1Label, step1Done, setStep1Done)} />
+        {btn2Label && (
+          <PillButton label={btn2Label} done={step2Done} onClick={() => handleAction(btn2Label, step2Done, setStep2Done)} />
+        )}
 
-        {/* ② 텍스트 라벨 (스피너 아이콘 + 작은 텍스트) */}
         <div style={{ 
           textAlign: "center", fontSize: "0.65rem", fontWeight: 700, color: "#64748b",
           display: "flex", justifyContent: "center", alignItems: "center", gap: 4,
-          padding: "2px 0"
+          padding: "4px 0"
         }}>
-          {(!step1Done || !step3Done) && (
+          {!isAllDone && (
             <svg style={{ animation: "spin 2s linear infinite", width: 10, height: 10, color: "#94a3b8" }} fill="none" viewBox="0 0 24 24">
               <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25"></circle>
               <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" className="opacity-75"></path>
@@ -156,29 +165,7 @@ function TaxCard({ report, globalStats, onStepToggle, onBtn, onMockConfirm }: {
           {labelText}
         </div>
 
-        {/* ③ 버튼 (Pill) */}
-        <button
-          onClick={handleBtn2}
-          style={{
-            padding: "4px 10px", fontSize: "0.68rem", fontWeight: 700,
-            borderRadius: 999, border: step3Done ? "none" : `1px solid ${tc.border}`,
-            background: step3Done ? tc.text : tc.bg,
-            color: step3Done ? "#fff" : tc.text,
-            cursor: step3Done ? "default" : "pointer",
-            transition: "all 0.2s",
-            display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%",
-            boxShadow: step3Done ? `0 1px 4px ${tc.text}40` : "none"
-          }}
-          onMouseEnter={e => {
-            if (!step3Done) e.currentTarget.style.filter = "brightness(0.95)";
-          }}
-          onMouseLeave={e => {
-            if (!step3Done) e.currentTarget.style.filter = "none";
-          }}
-        >
-          <span>{btn2Label}</span>
-          {step3Done ? <span style={{ fontSize: "0.65rem" }}>✓</span> : <span style={{ fontSize: "0.65rem", opacity: 0.7 }}>→</span>}
-        </button>
+        <PillButton label={btn3Label} done={step3Done} onClick={() => handleAction(btn3Label, step3Done, setStep3Done)} />
 
       </div>
     </div>
