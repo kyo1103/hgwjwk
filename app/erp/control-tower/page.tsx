@@ -36,99 +36,150 @@ const TAX_COLORS: Record<string, { bg: string; text: string; border: string }> =
 
 /* ─────────────────────────── 서브 컴포넌트 ─────────────────────────── */
 
-function StepRow({ step, summary, onToggle, onBtn }: { 
-  step: ReportStep; 
-  summary?: { done: number, total: number };
-  onToggle: () => void; 
-  onBtn: () => void; 
-}) {
-  let bg = COLORS.pending;
-  let tx = COLORS.pendingText;
-  let btnBg = step.status === "pending" ? "#e2e8f0" : "rgba(255,255,255,0.3)";
-  let btnTx = step.status === "pending" ? "#64748b" : "#fff";
-
-  if (step.status === "done") {
-    bg = COLORS.done;
-    tx = COLORS.doneText;
-  } else if (step.status === "in-progress") {
-    bg = COLORS.inProgress;
-    tx = COLORS.inProgressText;
-  } else if (step.isAutoSync) {
-    bg = "#f3e8ff"; // 연한 보라색 배경
-    tx = "#7e22ce"; // 어두운 보라 텍스트
-    btnBg = "#e9d5ff";
-    btnTx = "#7e22ce";
-  }
-
-  const icon = step.status === "done" ? "✓" : step.status === "in-progress" ? "▶" : "○";
-
-  return (
-    <div onClick={onToggle} style={{
-      display: "flex", alignItems: "center", justifyContent: "space-between",
-      padding: "4px 7px", background: bg, borderRadius: 5, cursor: "pointer",
-      transition: "all 0.2s", gap: 4, minHeight: 26,
-    }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 4, flex: 1, minWidth: 0 }}>
-        <span style={{ fontSize: "0.65rem", color: tx, flexShrink: 0 }}>{icon}</span>
-        <span style={{
-          fontSize: "0.63rem", fontWeight: 600, color: tx,
-          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-        }}>
-          {step.label}
-          {summary && <span style={{ opacity: 0.8, marginLeft: 4, fontWeight: 500 }}>({summary.done}/{summary.total})</span>}
-        </span>
-      </div>
-      {step.hasButton && (
-        <button onClick={e => { e.stopPropagation(); onBtn(); }} style={{
-          padding: "1px 6px", fontSize: "0.58rem", fontWeight: 700, border: "none", borderRadius: 3,
-          cursor: "pointer", flexShrink: 0,
-          background: btnBg,
-          color: btnTx,
-          transition: "all 0.15s",
-        }}>
-          {step.isAutoSync && step.status === "pending" ? "자동연동 예정" : step.buttonLabel}
-        </button>
-      )}
-    </div>
-  );
-}
-
-function TaxCard({ report, globalStats, onStepToggle, onBtn }: {
+function TaxCard({ report, globalStats, onStepToggle, onBtn, onMockConfirm }: {
   report: TaxReport;
   globalStats?: Record<string, { done: number; total: number }>;
   onStepToggle: (i: number) => void;
   onBtn: (i: number) => void;
+  onMockConfirm?: (title: string, onConfirm: () => void) => void;
 }) {
   const tc = TAX_COLORS[report.taxType] || TAX_COLORS["원천세"];
-  const done = report.steps.filter(s => s.status === "done").length;
 
+  // 목업용 상태
+  const [step1Done, setStep1Done] = useState(false);
+  const [step3Done, setStep3Done] = useState(false);
+
+  // 원천세 기준으로 텍스트 설정 (다른 세목도 비슷하게 구성)
+  let btn1Label = "API 수집 요청";
+  let labelText = `${report.taxType} 작업중`;
+  let btn2Label = "납부서 전송";
+
+  if (report.taxType === "원천세") {
+    btn1Label = "급여 핑";
+    labelText = "원천세 작업중";
+    btn2Label = "납부서 톡";
+  } else if (report.taxType === "법인세" || report.taxType === "종합소득세") {
+    btn1Label = "수집 요청";
+    btn2Label = "신고서 전송";
+  } else if (report.taxType === "연말정산") {
+    btn1Label = "안내 톡";
+    btn2Label = "영수증 전송";
+  } else if (report.taxType === "부가세") {
+    btn1Label = "자료 핑";
+    labelText = "장부·부가세 작업중";
+    btn2Label = "납부서 톡";
+  }
+
+  const handleBtn1 = () => {
+    if (step1Done) return;
+    if (onMockConfirm) {
+      onMockConfirm(btn1Label, () => setStep1Done(true));
+    } else {
+      setStep1Done(true);
+    }
+  };
+
+  const handleBtn2 = () => {
+    if (step3Done) return;
+    if (onMockConfirm) {
+      onMockConfirm(btn2Label, () => setStep3Done(true));
+    } else {
+      setStep3Done(true);
+    }
+  };
+
+  // 기존 컴팩트한 카드 높이를 맞추기 위해 170px 넓이, 작은 폰트 적용
   return (
     <div style={{
       border: `1.5px solid ${tc.border}`, borderRadius: 8, background: "#fff",
-      overflow: "hidden", width: 220, flexShrink: 0,
+      overflow: "hidden", width: 175, flexShrink: 0,
       boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+      display: "flex", flexDirection: "column"
     }}>
       <div style={{
         background: tc.bg, padding: "5px 8px",
         display: "flex", justifyContent: "space-between", alignItems: "center",
         borderBottom: `1px solid ${tc.border}`,
       }}>
-        <span style={{ fontSize: "0.72rem", fontWeight: 800, color: tc.text }}>{report.taxType}</span>
-        <span style={{
-          fontSize: "0.6rem", fontWeight: 700, color: tc.text,
-          background: "rgba(255,255,255,0.6)", padding: "1px 5px", borderRadius: 99,
-        }}>{done}/7</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+           <span style={{ fontSize: "0.72rem", fontWeight: 800, color: tc.text }}>{report.taxType}</span>
+           {(step1Done && step3Done) ? (
+             <span style={{ fontSize: "0.55rem", fontWeight: 800, color: "#fff", background: tc.text, padding: "1px 5px", borderRadius: 4 }}>
+               완료
+             </span>
+           ) : (
+             <span style={{ fontSize: "0.55rem", fontWeight: 800, color: tc.text, background: "rgba(255,255,255,0.6)", padding: "1px 5px", borderRadius: 4 }}>
+               진행
+             </span>
+           )}
+        </div>
       </div>
-      <div style={{ padding: 4, display: "flex", flexDirection: "column", gap: 2 }}>
-        {report.steps.map((s, i) => (
-          <StepRow 
-            key={i} 
-            step={s} 
-            summary={globalStats && report.taxType === "원천세" ? globalStats[s.label] : undefined} 
-            onToggle={() => onStepToggle(i)} 
-            onBtn={() => onBtn(i)} 
-          />
-        ))}
+
+      <div style={{ padding: "8px", display: "flex", flexDirection: "column", gap: 6, flex: 1, justifyContent: "center" }}>
+        
+        {/* ① 버튼 (Pill) */}
+        <button
+          onClick={handleBtn1}
+          style={{
+            padding: "4px 10px", fontSize: "0.68rem", fontWeight: 700,
+            borderRadius: 999, border: step1Done ? "none" : `1px solid ${tc.border}`,
+            background: step1Done ? tc.text : tc.bg,
+            color: step1Done ? "#fff" : tc.text,
+            cursor: step1Done ? "default" : "pointer",
+            transition: "all 0.2s",
+            display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%",
+            boxShadow: step1Done ? `0 1px 4px ${tc.text}40` : "none"
+          }}
+          onMouseEnter={e => {
+            if (!step1Done) e.currentTarget.style.filter = "brightness(0.95)";
+          }}
+          onMouseLeave={e => {
+            if (!step1Done) e.currentTarget.style.filter = "none";
+          }}
+        >
+          <span>{btn1Label}</span>
+          {step1Done ? <span style={{ fontSize: "0.65rem" }}>✓</span> : <span style={{ fontSize: "0.65rem", opacity: 0.7 }}>→</span>}
+        </button>
+
+        {/* ② 텍스트 라벨 (스피너 아이콘 + 작은 텍스트) */}
+        <div style={{ 
+          textAlign: "center", fontSize: "0.65rem", fontWeight: 700, color: "#64748b",
+          display: "flex", justifyContent: "center", alignItems: "center", gap: 4,
+          padding: "2px 0"
+        }}>
+          {(!step1Done || !step3Done) && (
+            <svg style={{ animation: "spin 2s linear infinite", width: 10, height: 10, color: "#94a3b8" }} fill="none" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25"></circle>
+              <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" className="opacity-75"></path>
+            </svg>
+          )}
+          {labelText}
+        </div>
+
+        {/* ③ 버튼 (Pill) */}
+        <button
+          onClick={handleBtn2}
+          style={{
+            padding: "4px 10px", fontSize: "0.68rem", fontWeight: 700,
+            borderRadius: 999, border: step3Done ? "none" : `1px solid ${tc.border}`,
+            background: step3Done ? tc.text : tc.bg,
+            color: step3Done ? "#fff" : tc.text,
+            cursor: step3Done ? "default" : "pointer",
+            transition: "all 0.2s",
+            display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%",
+            boxShadow: step3Done ? `0 1px 4px ${tc.text}40` : "none"
+          }}
+          onMouseEnter={e => {
+            if (!step3Done) e.currentTarget.style.filter = "brightness(0.95)";
+          }}
+          onMouseLeave={e => {
+            if (!step3Done) e.currentTarget.style.filter = "none";
+          }}
+        >
+          <span>{btn2Label}</span>
+          {step3Done ? <span style={{ fontSize: "0.65rem" }}>✓</span> : <span style={{ fontSize: "0.65rem", opacity: 0.7 }}>→</span>}
+        </button>
+
       </div>
     </div>
   );
@@ -145,6 +196,7 @@ export default function ControlTowerPage() {
   const [companies, setCompanies] = useState<Company[]>(MOCK_COMPANIES);
   const [activeRow, setActiveRow] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [mockModal, setMockModal] = useState<{ title: string, onConfirm: () => void } | null>(null);
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
   const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
 
@@ -598,7 +650,8 @@ export default function ControlTowerPage() {
                                     report={report}
                                     globalStats={withholdingStats.steps}
                                     onStepToggle={(sIdx) => handleStepToggle(company.id, monthIdx, rIdx, sIdx)}
-                                    onBtn={(sIdx) => handleBtn(company.shortName, report.taxType, report.steps[sIdx].label)}
+                                    onBtn={(sIdx) => undefined}
+                                    onMockConfirm={(title, onConfirm) => setMockModal({ title, onConfirm })}
                                   />
                               ))}
                             </div>
@@ -621,6 +674,45 @@ export default function ControlTowerPage() {
           </table>
         </div>
       </div>
+
+      {/* Mock Modal */}
+      {mockModal && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+          background: "rgba(0,0,0,0.4)", zIndex: 100000,
+          display: "flex", alignItems: "center", justifyContent: "center"
+        }}>
+          <div style={{ background: "#fff", padding: "28px 32px", borderRadius: 16, width: 340, boxShadow: "0 20px 40px rgba(0,0,0,0.2)" }}>
+            <h3 style={{ margin: "0 0 12px 0", fontSize: "1.1rem", color: "#0f172a", fontWeight: 800 }}>작업 상태 변경</h3>
+            <p style={{ margin: "0 0 24px 0", fontSize: "0.85rem", color: "#475569", lineHeight: 1.5 }}>
+              <strong>{mockModal.title}</strong> 작업을 완료 처리하시겠습니까?
+              <br/><span style={{ color: "#94a3b8", fontSize: "0.75rem" }}>(※ 실제 API 호출은 생략된 목업입니다)</span>
+            </p>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button 
+                onClick={() => setMockModal(null)} 
+                style={{ padding: "8px 16px", background: "#f1f5f9", border: "none", borderRadius: 8, color: "#475569", cursor: "pointer", fontWeight: 700, transition: "background 0.2s" }}
+                onMouseEnter={e => e.currentTarget.style.background = "#e2e8f0"}
+                onMouseLeave={e => e.currentTarget.style.background = "#f1f5f9"}
+              >
+                취소
+              </button>
+              <button 
+                onClick={() => {
+                  mockModal.onConfirm();
+                  setMockModal(null);
+                  showToast(`"${mockModal.title}" 완료`);
+                }} 
+                style={{ padding: "8px 16px", background: "#2563eb", border: "none", borderRadius: 8, color: "#fff", cursor: "pointer", fontWeight: 700, transition: "background 0.2s", boxShadow: "0 4px 12px rgba(37,99,235,0.2)" }}
+                onMouseEnter={e => e.currentTarget.style.background = "#1d4ed8"}
+                onMouseLeave={e => e.currentTarget.style.background = "#2563eb"}
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style jsx global>{`
         @keyframes fadeInDown {
