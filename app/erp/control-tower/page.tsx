@@ -36,11 +36,9 @@ const TAX_COLORS: Record<string, { bg: string; text: string; border: string }> =
 
 /* ─────────────────────────── 서브 컴포넌트 ─────────────────────────── */
 
-function TaxCard({ report, globalStats, onStepToggle, onBtn, onMockConfirm }: {
+function TaxCard({ report, onStepToggle, onMockConfirm }: {
   report: TaxReport;
-  globalStats?: Record<string, { done: number; total: number }>;
   onStepToggle: (i: number) => void;
-  onBtn: (i: number) => void;
   onMockConfirm?: (title: string, onConfirm: () => void) => void;
 }) {
   const tc = TAX_COLORS[report.taxType] || TAX_COLORS["원천세"];
@@ -651,9 +649,7 @@ export default function ControlTowerPage() {
                                   <TaxCard
                                     key={rIdx}
                                     report={report}
-                                    globalStats={withholdingStats.steps}
                                     onStepToggle={(sIdx) => handleStepToggle(company.id, monthIdx, rIdx, sIdx)}
-                                    onBtn={(sIdx) => undefined}
                                     onMockConfirm={(title, onConfirm) => setMockModal({ title, onConfirm })}
                                   />
                               ))}
