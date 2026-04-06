@@ -45,78 +45,58 @@ function TaxCard({ report, globalStats, onStepToggle, onBtn, onMockConfirm }: {
 }) {
   const tc = TAX_COLORS[report.taxType] || TAX_COLORS["원천세"];
 
-  // 목업용 상태
-  const [step1Done, setStep1Done] = useState(false);
-  const [step2Done, setStep2Done] = useState(false);
-  const [step3Done, setStep3Done] = useState(false);
+  const stepsLength = report.steps.length;
+  if (stepsLength === 0) return null; // data sanity check
 
-  let btn1Label = "자료수집";
-  let btn2Label: string | null = "자료요청";
+  const step1 = report.steps[0];
+  const step2 = stepsLength > 2 ? report.steps[1] : null;
+  const step3 = report.steps[stepsLength - 1];
+
   let labelText = `${report.taxType} 작업중`;
-  let btn3Label = "전송";
+  if (report.taxType === "원천세") labelText = "급여·원천세 작업중";
+  else if (report.taxType === "법인세") labelText = "결산·세무조정 작업중";
+  else if (report.taxType === "종합소득세") labelText = "소득세 작업중";
+  else if (report.taxType === "연말정산") labelText = "정산작업중";
+  else if (report.taxType === "부가세") labelText = "장부·부가세 작업중";
 
-  if (report.taxType === "원천세") {
-    btn1Label = "급여자료 요청";
-    btn2Label = null;
-    labelText = "급여·원천세 작업중";
-    btn3Label = "납부서 전달";
-  } else if (report.taxType === "법인세") {
-    btn1Label = "자료수집";
-    btn2Label = "고객사 자료요청";
-    labelText = "결산·세무조정 작업중";
-    btn3Label = "납부서·보고서 전송";
-  } else if (report.taxType === "종합소득세") {
-    btn1Label = "자료수집";
-    btn2Label = "고객사 자료요청";
-    labelText = "소득세 작업중";
-    btn3Label = "납부서 전송";
-  } else if (report.taxType === "연말정산") {
-    btn1Label = "안내문 발송";
-    btn2Label = "소득공제 자료 요청";
-    labelText = "정산작업중";
-    btn3Label = "원천징수영수증 전달";
-  } else if (report.taxType === "부가세") {
-    btn1Label = "자료수집";
-    btn2Label = "수기자료 요청";
-    labelText = "세무사랑 작업중";
-    btn3Label = "납부서·보고서 전송";
-  }
-
-  const handleAction = (label: string, done: boolean, setDone: (v: boolean) => void) => {
+  const handleAction = (label: string, done: boolean, sIdx: number) => {
     if (done) return;
     if (onMockConfirm) {
-      onMockConfirm(label, () => setDone(true));
+      onMockConfirm(label, () => onStepToggle(sIdx));
     } else {
-      setDone(true);
+      onStepToggle(sIdx);
     }
   };
 
-  const isAllDone = btn2Label ? (step1Done && step2Done && step3Done) : (step1Done && step3Done);
+  const isAllDone = report.steps.every(s => s.status === "done");
 
-  const PillButton = ({ label, done, onClick }: { label: string, done: boolean, onClick: () => void }) => (
-    <button
-      onClick={onClick}
-      style={{
-        padding: "4px 10px", fontSize: "0.68rem", fontWeight: 700,
-        borderRadius: 999, border: done ? "none" : `1px solid ${tc.border}`,
-        background: done ? tc.text : tc.bg,
-        color: done ? "#fff" : tc.text,
-        cursor: done ? "default" : "pointer",
-        transition: "all 0.2s",
-        display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%",
-        boxShadow: done ? `0 1px 4px ${tc.text}40` : "none"
-      }}
-      onMouseEnter={e => {
-        if (!done) e.currentTarget.style.filter = "brightness(0.95)";
-      }}
-      onMouseLeave={e => {
-        if (!done) e.currentTarget.style.filter = "none";
-      }}
-    >
-      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
-      {done ? <span style={{ fontSize: "0.65rem", flexShrink: 0, marginLeft: 4 }}>✓</span> : <span style={{ fontSize: "0.65rem", opacity: 0.7, flexShrink: 0, marginLeft: 4 }}>→</span>}
-    </button>
-  );
+  const PillButton = ({ step, idx }: { step: ReportStep, idx: number }) => {
+    const done = step.status === "done";
+    return (
+      <button
+        onClick={() => handleAction(step.label, done, idx)}
+        style={{
+          padding: "4px 10px", fontSize: "0.68rem", fontWeight: 700,
+          borderRadius: 999, border: done ? "none" : `1px solid ${tc.border}`,
+          background: done ? tc.text : tc.bg,
+          color: done ? "#fff" : tc.text,
+          cursor: done ? "default" : "pointer",
+          transition: "all 0.2s",
+          display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%",
+          boxShadow: done ? `0 1px 4px ${tc.text}40` : "none"
+        }}
+        onMouseEnter={e => {
+          if (!done) e.currentTarget.style.filter = "brightness(0.95)";
+        }}
+        onMouseLeave={e => {
+          if (!done) e.currentTarget.style.filter = "none";
+        }}
+      >
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{step.label}</span>
+        {done ? <span style={{ fontSize: "0.65rem", flexShrink: 0, marginLeft: 4 }}>✓</span> : <span style={{ fontSize: "0.65rem", opacity: 0.7, flexShrink: 0, marginLeft: 4 }}>→</span>}
+      </button>
+    );
+  };
 
   return (
     <div style={{
@@ -146,10 +126,8 @@ function TaxCard({ report, globalStats, onStepToggle, onBtn, onMockConfirm }: {
 
       <div style={{ padding: "8px", display: "flex", flexDirection: "column", gap: 4, flex: 1, justifyContent: "center" }}>
         
-        <PillButton label={btn1Label} done={step1Done} onClick={() => handleAction(btn1Label, step1Done, setStep1Done)} />
-        {btn2Label && (
-          <PillButton label={btn2Label} done={step2Done} onClick={() => handleAction(btn2Label, step2Done, setStep2Done)} />
-        )}
+        <PillButton step={step1} idx={0} />
+        {step2 && <PillButton step={step2} idx={1} />}
 
         <div style={{ 
           textAlign: "center", fontSize: "0.65rem", fontWeight: 700, color: "#64748b",
@@ -165,7 +143,7 @@ function TaxCard({ report, globalStats, onStepToggle, onBtn, onMockConfirm }: {
           {labelText}
         </div>
 
-        <PillButton label={btn3Label} done={step3Done} onClick={() => handleAction(btn3Label, step3Done, setStep3Done)} />
+        <PillButton step={step3} idx={stepsLength - 1} />
 
       </div>
     </div>
@@ -241,30 +219,37 @@ export default function ControlTowerPage() {
     return groups;
   }, [filteredCompanies]);
 
-  const withholdingStats = useMemo(() => {
-    const stats: Record<string, { done: number; total: number }> = {};
-    let overallTotal = 0;
-    let overallDone = 0;
+  const [summaryTab, setSummaryTab] = useState("원천세");
+
+  const summaryStats = useMemo(() => {
+    let pending = 0;
+    let inProgress = 0;
+    let done = 0;
+    let sumPct = 0;
+    let totalCount = 0;
 
     companies.forEach(c => {
       c.months.forEach(m => {
         m.reports.forEach(r => {
-          if (r.taxType === "원천세") {
-            overallTotal += 1;
-            const finishStep = r.steps.find(s => s.label === "납부확인");
-            if (finishStep && finishStep.status === "done") overallDone += 1;
+          if (r.taxType === summaryTab && r.steps.length > 0) {
+            totalCount++;
+            const allDone = r.steps.every(s => s.status === "done");
+            const firstDone = r.steps[0].status === "done";
+            
+            if (allDone) done++;
+            else if (firstDone) inProgress++;
+            else pending++;
 
-            r.steps.forEach(s => {
-              if (!stats[s.label]) stats[s.label] = { done: 0, total: 0 };
-              stats[s.label].total += 1;
-              if (s.status === "done") stats[s.label].done += 1;
-            });
+            const completedCount = r.steps.filter(s => s.status === "done").length;
+            sumPct += (completedCount / r.steps.length);
           }
         });
       });
     });
-    return { steps: stats, overallTotal, overallDone };
-  }, [companies]);
+
+    const overallProgress = totalCount > 0 ? Math.round((sumPct / totalCount) * 100) : 0;
+    return { pending, inProgress, done, totalCount, overallProgress };
+  }, [companies, summaryTab]);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -280,7 +265,7 @@ export default function ControlTowerPage() {
           if (ri !== rIdx) return r;
           const newSteps = r.steps.map((s, si) => {
             if (si !== sIdx) return s;
-            const next: StepStatus = s.status === "pending" ? "in-progress" : s.status === "in-progress" ? "done" : "pending";
+            const next: StepStatus = s.status === "done" ? "pending" : "done";
             return { ...s, status: next };
           });
           return { ...r, steps: newSteps };
@@ -323,35 +308,66 @@ export default function ControlTowerPage() {
         </p>
       </div>
 
-      {/* ─── 우측 화면밖 위치 고정 원천세 현황판 ─── */}
+      {/* ─── 우측 화면밖 위치 고정 현황판 ─── */}
       <div style={{
-        position: "fixed", top: 130, right: 30, zIndex: 100, width: 170,
+        position: "fixed", top: 130, right: 30, zIndex: 100, width: 200,
         display: "flex", flexDirection: "column", gap: 12, background: "#fff", padding: "16px",
         borderRadius: 12, border: `1px solid ${COLORS.border}`, boxShadow: "0 4px 16px rgba(0,0,0,0.06)"
       }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 4, borderBottom: "1px dashed #e2e8f0", paddingBottom: 10 }}>
-          <span style={{ fontSize: "0.75rem", fontWeight: 800, color: TAX_COLORS["원천세"].text }}>원천세 진행현황</span>
-          <div style={{ fontSize: "1.4rem", fontWeight: 800, color: "#0f172a", lineHeight: 1.1 }}>
-            {withholdingStats.overallDone} <span style={{ opacity: 0.4, fontSize: "0.85rem", fontWeight: 700 }}>/ {withholdingStats.overallTotal}</span>
-          </div>
-          <span style={{ fontSize: "0.6rem", color: "#64748b", fontWeight: 600 }}>(납부확인 완료 기준)</span>
+        {/* 세목 탭 선택 */}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, paddingBottom: 10, borderBottom: "1px dashed #e2e8f0" }}>
+          {["원천세", "부가세", "법인세", "종합소득세", "연말정산"].map(tax => (
+            <button
+              key={tax}
+              onClick={() => setSummaryTab(tax)}
+              style={{
+                padding: "4px 8px", fontSize: "0.65rem", fontWeight: 700, borderRadius: 6,
+                background: summaryTab === tax ? "#0f172a" : "#f1f5f9",
+                color: summaryTab === tax ? "#fff" : "#64748b",
+                border: "none", cursor: "pointer", transition: "all 0.2s"
+              }}
+            >
+              {tax.slice(0, 4)}
+            </button>
+          ))}
         </div>
-        
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {["급여자료 수집", "급여대장 작성", "세무사랑 신고서", "홈택스 신고", "위택스 신고", "납부서 전달", "납부확인"].map((label) => {
-            const st = withholdingStats.steps[label] || { done: 0, total: 0 };
-            const isDone = st.done === st.total && st.total > 0;
-            return (
-              <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: "0.68rem", color: "#475569", fontWeight: 600 }}>
-                  {label === "세무사랑 신고서" ? "서식변환" : label.split(" ")[label.split(" ").length - 1]}
-                </span>
-                <span style={{ fontSize: "0.75rem", fontWeight: 700, color: isDone ? COLORS.done : "#0f172a" }}>
-                  {st.done} <span style={{ opacity: 0.5, fontSize: "0.6rem" }}>/ {st.total}</span>
-                </span>
-              </div>
-            );
-          })}
+
+        {/* 요약 통계 */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <span style={{ fontSize: "0.75rem", fontWeight: 800, color: TAX_COLORS[summaryTab]?.text || "#0f172a" }}>진행 현황</span>
+            <span style={{ fontSize: "0.65rem", color: "#64748b", fontWeight: 700 }}>총 {summaryStats.totalCount}건</span>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 4 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: "0.75rem", color: "#94a3b8", fontWeight: 700 }}>대기</span>
+              <span style={{ fontSize: "0.9rem", fontWeight: 800, color: "#64748b" }}>{summaryStats.pending}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: "0.75rem", color: "#22c55e", fontWeight: 700 }}>진행중</span>
+              <span style={{ fontSize: "0.9rem", fontWeight: 800, color: "#22c55e" }}>{summaryStats.inProgress}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: "0.75rem", color: "#3b82f6", fontWeight: 700 }}>완료</span>
+              <span style={{ fontSize: "0.9rem", fontWeight: 800, color: "#3b82f6" }}>{summaryStats.done}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* 전체 진행률 브레드크럼 */}
+        <div style={{ marginTop: 8 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
+            <span style={{ fontSize: "0.68rem", fontWeight: 700, color: "#64748b" }}>전체 진행률</span>
+            <span style={{ fontSize: "0.75rem", fontWeight: 800, color: "#0f172a" }}>{summaryStats.overallProgress}%</span>
+          </div>
+          <div style={{ width: "100%", height: 6, background: "#f1f5f9", borderRadius: 999, overflow: "hidden" }}>
+             <div style={{ 
+               width: `${summaryStats.overallProgress}%`, height: "100%", 
+               background: TAX_COLORS[summaryTab]?.text || "#3b82f6", 
+               borderRadius: 999, transition: "width 0.3s ease" 
+             }} />
+          </div>
         </div>
       </div>
 

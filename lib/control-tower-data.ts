@@ -46,61 +46,39 @@ function makeSteps(taxType: string, doneCount: number, inProgressIndex?: number)
 
   if (taxType === "원천세") {
     template = [
-      { label: "급여자료 수집", hasButton: true, buttonLabel: "수집", isAutoSync: true },
-      { label: "급여대장 작성", hasButton: true, buttonLabel: "작성", isAutoSync: true },
-      { label: "세무사랑 신고서", hasButton: true, buttonLabel: "변환" },
-      { label: "홈택스 신고", hasButton: true, buttonLabel: "신고" },
-      { label: "위택스 신고", hasButton: true, buttonLabel: "신고" },
-      { label: "납부서 전달", hasButton: true, buttonLabel: "전달" },
-      { label: "납부확인", hasButton: false },
+      { label: "급여 핑", hasButton: true },
+      { label: "납부서 톡", hasButton: true },
     ];
   } else if (taxType === "법인세") {
     template = [
-      { label: "API 자동수집", hasButton: true, buttonLabel: "수집" },
-      { label: "고객사 자료요청", hasButton: true, buttonLabel: "요청" },
-      { label: "수집완료", hasButton: false },
-      { label: "결산/재무제표", hasButton: true, buttonLabel: "작성" },
-      { label: "세무조정", hasButton: false },
-      { label: "홈택스 신고", hasButton: false },
-      { label: "납부서·보고서 전송", hasButton: true, buttonLabel: "전송" },
+      { label: "수집 요청", hasButton: true },
+      { label: "고객사 자료요청", hasButton: true },
+      { label: "신고서 전송", hasButton: true },
     ];
   } else if (taxType === "종합소득세") {
     template = [
-      { label: "API 자동수집", hasButton: true, buttonLabel: "수집" },
-      { label: "고객사 자료요청", hasButton: true, buttonLabel: "요청" },
-      { label: "수집완료", hasButton: false },
-      { label: "소득금액 확정", hasButton: true, buttonLabel: "확정" },
-      { label: "세무조정/공제", hasButton: false },
-      { label: "홈택스 신고", hasButton: false },
-      { label: "납부서 전송", hasButton: true, buttonLabel: "전송" },
+      { label: "수집 요청", hasButton: true },
+      { label: "고객사 자료요청", hasButton: true },
+      { label: "신고서 전송", hasButton: true },
     ];
   } else if (taxType === "연말정산") {
     template = [
-      { label: "안내문 발송", hasButton: true, buttonLabel: "발송" },
-      { label: "소득공제 자료수집", hasButton: true, buttonLabel: "수집" },
-      { label: "수집완료", hasButton: false },
-      { label: "공제항목 검토", hasButton: true, buttonLabel: "검토" },
-      { label: "정산작업", hasButton: false },
-      { label: "원천징수영수증 생성", hasButton: true, buttonLabel: "생성" },
-      { label: "고객사 전달", hasButton: true, buttonLabel: "전달" },
+      { label: "안내 톡", hasButton: true },
+      { label: "소득공제 수집", hasButton: true },
+      { label: "영수증 전송", hasButton: true },
     ];
   } else {
     // 부가세 및 기타 기본 구조
     template = [
-      { label: "API 자동수집", hasButton: true, buttonLabel: "수집" },
-      { label: "수기자료 요청", hasButton: true, buttonLabel: "요청" },
-      { label: "수집완료", hasButton: false },
-      { label: "세무사랑 서식변환", hasButton: true, buttonLabel: "변환" },
-      { label: "장부작업", hasButton: false },
-      { label: "홈택스 신고", hasButton: false },
-      { label: "납부서·보고서 전송", hasButton: true, buttonLabel: "전송" },
+      { label: "자료 핑", hasButton: true },
+      { label: "수기자료 요청", hasButton: true },
+      { label: "납부서 톡", hasButton: true },
     ];
   }
 
   return template.map((t, idx) => {
     let status: StepStatus = "pending";
     if (idx < doneCount) status = "done";
-    else if (idx === (inProgressIndex ?? doneCount)) status = "in-progress";
     return { ...t, status };
   });
 }
