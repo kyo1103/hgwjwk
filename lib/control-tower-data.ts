@@ -3,12 +3,19 @@ import { clientLookupRows } from "./wemembers-data";
 
 export type StepStatus = "done" | "in-progress" | "pending";
 
+export interface ExecutionLog {
+  timestamp: string;
+  executor: string;
+  status: "success" | "fail";
+}
+
 export interface ReportStep {
   label: string;
   status: StepStatus;
   hasButton: boolean;
   buttonLabel?: string;
   isAutoSync?: boolean;
+  executionHistory?: ExecutionLog[];
 }
 
 export interface TaxReport {
@@ -46,40 +53,48 @@ function makeSteps(taxType: string, doneCount: number, inProgressIndex?: number)
 
   if (taxType === "원천세") {
     template = [
-      { label: "급여 핑", hasButton: true },
-      { label: "납부서 톡", hasButton: true },
+      { label: "급여 요청", hasButton: true },
+      { label: "납부서 전달", hasButton: true },
     ];
   } else if (taxType === "법인세") {
     template = [
-      { label: "수집 요청", hasButton: true },
-      { label: "고객사 자료요청", hasButton: true },
-      { label: "신고서 전송", hasButton: true },
+      { label: "자동수집", hasButton: true },
+      { label: "자료 요청", hasButton: true },
+      { label: "납부서 전달", hasButton: true },
     ];
   } else if (taxType === "종합소득세") {
     template = [
-      { label: "수집 요청", hasButton: true },
-      { label: "고객사 자료요청", hasButton: true },
-      { label: "신고서 전송", hasButton: true },
+      { label: "자동수집", hasButton: true },
+      { label: "자료 요청", hasButton: true },
+      { label: "납부서 전달", hasButton: true },
     ];
   } else if (taxType === "연말정산") {
     template = [
-      { label: "안내 톡", hasButton: true },
-      { label: "소득공제 수집", hasButton: true },
-      { label: "영수증 전송", hasButton: true },
+      { label: "안내 발송", hasButton: true },
+      { label: "자료 요청", hasButton: true },
+      { label: "영수증 전달", hasButton: true },
     ];
   } else {
     // 부가세 및 기타 기본 구조
     template = [
-      { label: "자료 핑", hasButton: true },
-      { label: "수기자료 요청", hasButton: true },
-      { label: "납부서 톡", hasButton: true },
+      { label: "자동수집", hasButton: true },
+      { label: "자료 요청", hasButton: true },
+      { label: "납부서 전달", hasButton: true },
     ];
   }
 
   return template.map((t, idx) => {
     let status: StepStatus = "pending";
-    if (idx < doneCount) status = "done";
-    return { ...t, status };
+    let executionHistory: ExecutionLog[] = [];
+    if (idx < doneCount) {
+      status = "done";
+      executionHistory.push({
+        timestamp: new Date().toISOString(),
+        executor: "시스템",
+        status: "success",
+      });
+    }
+    return { ...t, status, executionHistory };
   });
 }
 

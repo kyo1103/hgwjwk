@@ -3,10 +3,11 @@
 import React, { useState, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
 import {
-  type StepStatus,
   type ReportStep,
   type TaxReport,
   type Company,
+  type StepStatus,
+  type ExecutionLog,
   INDUSTRY_META,
   MONTHS,
   MOCK_COMPANIES,
@@ -25,6 +26,11 @@ const COLORS = {
   headerBg: "#f8fafc",
 };
 
+const CHECKBOX_STYLE: React.CSSProperties = {
+  width: 12, height: 12, margin: 0, cursor: "pointer", flexShrink: 0,
+  accentColor: "#3b82f6",
+};
+
 const TAX_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   "원천세": { bg: "#eff6ff", text: "#2563eb", border: "#bfdbfe" },
   "부가세": { bg: "#fef3c7", text: "#d97706", border: "#fde68a" },
@@ -34,12 +40,21 @@ const TAX_COLORS: Record<string, { bg: string; text: string; border: string }> =
   "성실신고": { bg: "#ffedd5", text: "#ea580c", border: "#fdba74" },
 };
 
+const BATCH_ACTIONS: Record<string, string[]> = {
+  "원천세": ["급여 요청", "납부서 전달"],
+  "부가세": ["자동수집", "자료 요청", "납부서 전달"],
+  "법인세": ["자동수집", "자료 요청", "납부서 전달"],
+  "종합소득세": ["자동수집", "자료 요청", "납부서 전달"],
+  "연말정산": ["안내 발송", "자료 요청", "영수증 전달"],
+};
+
 /* ─────────────────────────── 서브 컴포넌트 ─────────────────────────── */
 
-function TaxCard({ report, onStepToggle, onMockConfirm }: {
+function TaxCard({ report, onStepAction, onMockConfirm, onViewHistory }: {
   report: TaxReport;
-  onStepToggle: (i: number) => void;
+  onStepAction: (i: number, action: "complete" | "resend" | "cancel") => void;
   onMockConfirm?: (title: string, onConfirm: () => void) => void;
+  onViewHistory?: (step: ReportStep, title: string) => void;
 }) {
   const tc = TAX_COLORS[report.taxType] || TAX_COLORS["원천세"];
 
@@ -59,52 +74,113 @@ function TaxCard({ report, onStepToggle, onMockConfirm }: {
 
   const handleAction = (label: string, done: boolean, sIdx: number) => {
     if (done) return;
-    if (onMockConfirm) {
-      onMockConfirm(label, () => onStepToggle(sIdx));
-    } else {
-      onStepToggle(sIdx);
-    }
+    onStepAction(sIdx, "complete");
   };
 
   const isAllDone = report.steps.every(s => s.status === "done");
 
   const PillButton = ({ step, idx }: { step: ReportStep, idx: number }) => {
     const done = step.status === "done";
+    const historyCount = step.executionHistory?.length || 0;
+    const badgeText = historyCount >= 2 ? ` (${historyCount})` : "";
+    const [dropdownOpen, setDropdownOpen] = useState(false);
+    
+    // Close dropdown on click outside
+    const ddRef = useRef<HTMLDivElement>(null);
+    React.useEffect(() => {
+      const handleClickOutside = (e: MouseEvent) => {
+        if (ddRef.current && !ddRef.current.contains(e.target as Node)) {
+          setDropdownOpen(false);
+        }
+      };
+      if (dropdownOpen) document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [dropdownOpen]);
+
     return (
-      <button
-        onClick={() => handleAction(step.label, done, idx)}
-        style={{
-          padding: "4px 10px", fontSize: "0.68rem", fontWeight: 700,
-          borderRadius: 999, border: done ? "none" : `1px solid ${tc.border}`,
-          background: done ? tc.text : tc.bg,
-          color: done ? "#fff" : tc.text,
-          cursor: done ? "default" : "pointer",
-          transition: "all 0.2s",
-          display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%",
-          boxShadow: done ? `0 1px 4px ${tc.text}40` : "none"
-        }}
-        onMouseEnter={e => {
-          if (!done) e.currentTarget.style.filter = "brightness(0.95)";
-        }}
-        onMouseLeave={e => {
-          if (!done) e.currentTarget.style.filter = "none";
-        }}
-      >
-        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{step.label}</span>
-        {done ? <span style={{ fontSize: "0.65rem", flexShrink: 0, marginLeft: 4 }}>✓</span> : <span style={{ fontSize: "0.65rem", opacity: 0.7, flexShrink: 0, marginLeft: 4 }}>→</span>}
-      </button>
+      <div style={{ position: "relative" }} ref={ddRef}>
+        <button
+          onClick={(e) => {
+            if (done) {
+              setDropdownOpen(!dropdownOpen);
+            } else {
+              handleAction(step.label, done, idx);
+            }
+          }}
+          style={{
+            padding: "4px 10px", fontSize: "0.68rem", fontWeight: 700,
+            borderRadius: 999, border: done ? "none" : `1px solid ${tc.border}`,
+            background: done ? tc.text : tc.bg,
+            color: done ? "#fff" : tc.text,
+            cursor: "pointer",
+            transition: "all 0.2s",
+            display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%",
+            boxShadow: done ? `0 1px 4px ${tc.text}40` : "none"
+          }}
+          onMouseEnter={e => {
+            if (!done) e.currentTarget.style.filter = "brightness(0.95)";
+          }}
+          onMouseLeave={e => {
+            if (!done) e.currentTarget.style.filter = "none";
+          }}
+        >
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {step.label}
+          </span>
+          {done ? (
+            <span style={{ fontSize: "0.65rem", flexShrink: 0, marginLeft: 4 }}>
+              ✓{badgeText}
+            </span>
+          ) : (
+            <span style={{ fontSize: "0.65rem", opacity: 0.7, flexShrink: 0, marginLeft: 4 }}>
+              →
+            </span>
+          )}
+        </button>
+
+        {/* Dropdown Menu for Completed Step */}
+        {dropdownOpen && done && (
+          <div style={{
+            position: "absolute", top: "100%", left: "50%", transform: "translateX(-50%)",
+            marginTop: 4, zIndex: 50, background: "#fff", border: "1px solid #e2e8f0",
+            borderRadius: 8, boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+            padding: "4px", width: 120, fontSize: "0.7rem", fontWeight: 600, color: "#334155"
+          }}>
+            <button onClick={() => {
+              setDropdownOpen(false);
+              if (onMockConfirm) onMockConfirm(step.label + " 다시 보내기 " , () => onStepAction(idx, "resend"));
+              else onStepAction(idx, "resend");
+            }} style={{ width: "100%", padding: "6px 8px", textAlign: "left", background: "none", border: "none", cursor: "pointer", borderRadius: 4, color: "#334155" }} onMouseEnter={e => e.currentTarget.style.background="#f1f5f9"} onMouseLeave={e => e.currentTarget.style.background="none"}>
+              다시 보내기
+            </button>
+            <button onClick={() => {
+              setDropdownOpen(false);
+              onStepAction(idx, "cancel");
+            }} style={{ width: "100%", padding: "6px 8px", textAlign: "left", background: "none", border: "none", cursor: "pointer", borderRadius: 4, color: "#334155" }} onMouseEnter={e => e.currentTarget.style.background="#f1f5f9"} onMouseLeave={e => e.currentTarget.style.background="none"}>
+              완료 취소
+            </button>
+            <div style={{ height: 1, background: "#e2e8f0", margin: "4px 0" }} />
+            <button onClick={() => {
+              setDropdownOpen(false);
+              if (onViewHistory) onViewHistory(step, `${report.taxType} - ${step.label}`);
+            }} style={{ width: "100%", padding: "6px 8px", textAlign: "left", background: "none", border: "none", cursor: "pointer", borderRadius: 4, color: "#334155" }} onMouseEnter={e => e.currentTarget.style.background="#f1f5f9"} onMouseLeave={e => e.currentTarget.style.background="none"}>
+              이력 보기
+            </button>
+          </div>
+        )}
+      </div>
     );
   };
 
   return (
     <div style={{
       border: `1.5px solid ${tc.border}`, borderRadius: 8, background: "#fff",
-      overflow: "hidden", width: 175, flexShrink: 0,
+      width: 175, flexShrink: 0,
       boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
       display: "flex", flexDirection: "column"
     }}>
       <div style={{
-        background: tc.bg, padding: "5px 8px",
+        background: tc.bg, padding: "5px 8px", borderTopLeftRadius: 6, borderTopRightRadius: 6,
         display: "flex", justifyContent: "space-between", alignItems: "center",
         borderBottom: `1px solid ${tc.border}`,
       }}>
@@ -158,10 +234,13 @@ const MONTH_COL_W = 500;
 export default function ControlTowerPage() {
   const [companies, setCompanies] = useState<Company[]>(MOCK_COMPANIES);
   const [activeRow, setActiveRow] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
-  const [mockModal, setMockModal] = useState<{ title: string, onConfirm: () => void } | null>(null);
+  const [toast, setToast] = useState<{ msg: string; onCancel?: () => void; id: number } | null>(null);
+  const [batchModal, setBatchModal] = useState<{ title: string, count: number, onConfirm: () => void } | null>(null);
+  const [historyModal, setHistoryModal] = useState<{ step: ReportStep, title: string } | null>(null);
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
   const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
+  const [selectedCompanies, setSelectedCompanies] = useState<Set<string>>(new Set());
+  const [batchTaxTab, setBatchTaxTab] = useState<string>("원천세");
 
   // ── 필터 상태 ──
   const [searchQuery, setSearchQuery] = useState("");
@@ -249,12 +328,15 @@ export default function ControlTowerPage() {
     return { pending, inProgress, done, totalCount, overallProgress };
   }, [companies, summaryTab]);
 
-  const showToast = useCallback((msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 2000);
+  const showToast = useCallback((msg: string, onCancel?: () => void) => {
+    const id = Date.now();
+    setToast({ msg, onCancel, id });
+    setTimeout(() => {
+      setToast(current => current?.id === id ? null : current);
+    }, 3000);
   }, []);
 
-  const handleStepToggle = (cId: string, mIdx: number, rIdx: number, sIdx: number) => {
+  const handleStepAction = (cId: string, mIdx: number, rIdx: number, sIdx: number, action: "complete" | "resend" | "cancel") => {
     setCompanies(prev => prev.map(c => {
       if (c.id !== cId) return c;
       const newMonths = c.months.map((m, mi) => {
@@ -263,8 +345,23 @@ export default function ControlTowerPage() {
           if (ri !== rIdx) return r;
           const newSteps = r.steps.map((s, si) => {
             if (si !== sIdx) return s;
-            const next: StepStatus = s.status === "done" ? "pending" : "done";
-            return { ...s, status: next };
+            
+            let nextStatus: StepStatus = s.status;
+            let nextHistory = s.executionHistory ? [...s.executionHistory] : [];
+            
+            if (action === "complete" || action === "resend") {
+              nextStatus = "done";
+              nextHistory.push({
+                timestamp: new Date().toISOString(),
+                executor: "현재사용자",
+                status: "success",
+              });
+            } else if (action === "cancel") {
+              nextStatus = "pending";
+              if (nextHistory.length > 0) nextHistory.pop();
+            }
+            
+            return { ...s, status: nextStatus, executionHistory: nextHistory };
           });
           return { ...r, steps: newSteps };
         });
@@ -272,6 +369,49 @@ export default function ControlTowerPage() {
       });
       return { ...c, months: newMonths };
     }));
+
+    if (action === "complete") {
+      const companyTemp = companies.find(c => c.id === cId);
+      const stepTemp = companyTemp?.months[mIdx].reports[rIdx].steps[sIdx];
+      showToast(`${companyTemp?.shortName} - ${stepTemp?.label} 완료`, () => {
+         handleStepAction(cId, mIdx, rIdx, sIdx, "cancel");
+      });
+    } else if (action === "resend") {
+       showToast(`다시 보내기 완료`);
+    } else if (action === "cancel") {
+       showToast(`완료 취소됨`);
+    }
+  };
+
+  const handleBatchAction = (taxType: string, actionLabel: string) => {
+    setCompanies(prev => prev.map(c => {
+      if (!selectedCompanies.has(c.id)) return c;
+      
+      const newMonths = c.months.map(m => {
+        const newReports = m.reports.map(r => {
+          if (r.taxType !== taxType) return r;
+
+          const newSteps = r.steps.map(s => {
+            if (s.label !== actionLabel || s.status === "done") return s;
+            
+            return {
+              ...s,
+              status: "done" as StepStatus,
+              executionHistory: [...(s.executionHistory || []), {
+                timestamp: new Date().toISOString(),
+                executor: "현재사용자(일괄)",
+                status: "success" as const,
+              }]
+            };
+          });
+          return { ...r, steps: newSteps };
+        });
+        return { ...m, reports: newReports };
+      });
+      return { ...c, months: newMonths };
+    }));
+    showToast(`선택한 ${selectedCompanies.size}개 업체에 "[${taxType}] ${actionLabel}" 처리가 완료되었습니다.`);
+    setSelectedCompanies(new Set());
   };
 
   const handleBtn = (name: string, tax: string, label: string) => {
@@ -285,15 +425,24 @@ export default function ControlTowerPage() {
 
   return (
     <div style={{ padding: "28px 16px", width: "95%", margin: "0 auto", position: "relative" }}>
-      {/* Toast */}
       {toast && (
         <div style={{
-          position: "fixed", top: 24, right: 24, zIndex: 9999,
-          background: "#0f172a", color: "#fff", padding: "12px 20px",
-          borderRadius: 10, fontSize: "0.85rem", fontWeight: 600,
+          position: "fixed", bottom: 40, left: "50%", transform: "translateX(-50%)", zIndex: 9999,
+          background: "#1e293b", color: "#fff", padding: "12px 20px", display: "flex", alignItems: "center", gap: 16,
+          borderRadius: 8, fontSize: "0.85rem", fontWeight: 600,
           boxShadow: "0 8px 24px rgba(0,0,0,0.2)",
-          animation: "fadeInDown 0.3s ease",
-        }}>{toast}</div>
+          animation: "fadeInUp 0.3s ease",
+        }}>
+          <span>{toast.msg}</span>
+          {toast.onCancel && (
+            <button onClick={() => {
+              toast.onCancel?.();
+              setToast(null);
+            }} style={{ background: "none", border: "none", color: "#cbd5e1", textDecoration: "underline", cursor: "pointer", fontWeight: 700 }}>
+              실행 취소
+            </button>
+          )}
+        </div>
       )}
 
       {/* Header */}
@@ -512,12 +661,22 @@ export default function ControlTowerPage() {
                   color: "#475569", letterSpacing: "0.02em",
                   borderBottom: `2px solid ${COLORS.border}`,
                   borderRight: `2px solid ${COLORS.border}`,
+                  display: "flex", alignItems: "center", gap: 10
                 }}>
-                  업체명
-                  <span style={{
-                    marginLeft: 8, background: "#e2e8f0", padding: "2px 7px",
-                    borderRadius: 99, fontSize: "0.68rem", fontWeight: 700, color: "#64748b",
-                  }}>{companies.length}</span>
+                  <input type="checkbox" style={CHECKBOX_STYLE}
+                    checked={selectedCompanies.size === companies.length && companies.length > 0} 
+                    onChange={e => {
+                      if (e.target.checked) setSelectedCompanies(new Set(companies.map(c => c.id)));
+                      else setSelectedCompanies(new Set());
+                    }}
+                  />
+                  <span>
+                    업체명
+                    <span style={{
+                      marginLeft: 8, background: "#e2e8f0", padding: "2px 7px",
+                      borderRadius: 99, fontSize: "0.68rem", fontWeight: 700, color: "#64748b",
+                    }}>{companies.length}</span>
+                  </span>
                 </th>
 
                 {/* 월 헤더 */}
@@ -555,6 +714,19 @@ export default function ControlTowerPage() {
                         fontWeight: 800, color: "#0f172a",
                         display: "flex", alignItems: "center", gap: 8
                       }}>
+                        <input type="checkbox" style={CHECKBOX_STYLE}
+                         onClick={(e) => e.stopPropagation()}
+                         checked={groupList.length > 0 && groupList.every(c => selectedCompanies.has(c.id))}
+                         onChange={e => {
+                           const newSet = new Set(selectedCompanies);
+                           if (e.target.checked) {
+                             groupList.forEach(c => newSet.add(c.id));
+                           } else {
+                             groupList.forEach(c => newSet.delete(c.id));
+                           }
+                           setSelectedCompanies(newSet);
+                         }}
+                        />
                         <div style={{
                           display: "flex", alignItems: "center", justifyContent: "center",
                           width: 20, height: 20, borderRadius: 4, background: "#cbd5e1",
@@ -590,23 +762,29 @@ export default function ControlTowerPage() {
                             transition: "background 0.2s",
                           }}
                         >
-                          {/* ─── 업체명 셀 (sticky) + 들여쓰기 ─── */}
-                          <td
-                            onClick={() => scrollToRow(company.id)}
+                            <td
                             style={{
                               position: "sticky", left: 0, zIndex: 10,
                               background: isActive ? "#e0f2fe" : cIdx % 2 === 0 ? "#fff" : "#fafbfc",
-                              padding: "12px 14px 12px 34px",
+                              padding: "12px 14px 12px 14px",
                               borderBottom: `1px solid ${COLORS.border}`,
                               borderRight: `2px solid ${COLORS.border}`,
-                              cursor: "pointer",
                               transition: "background 0.2s",
                               verticalAlign: "top",
                             }}
                           >
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                        <input type="checkbox" style={{ ...CHECKBOX_STYLE, marginLeft: 4 }}
+                          checked={selectedCompanies.has(company.id)}
+                          onChange={e => {
+                            const newSet = new Set(selectedCompanies);
+                            if (e.target.checked) newSet.add(company.id);
+                            else newSet.delete(company.id);
+                            setSelectedCompanies(newSet);
+                          }}
+                        />
                         <span style={{ fontSize: "0.85rem" }}>{meta.icon}</span>
-                        <div>
+                        <div onClick={() => scrollToRow(company.id)} style={{ cursor: "pointer" }}>
                           <div style={{
                             fontSize: "0.82rem", fontWeight: 700,
                             color: isActive ? meta.color : "#0f172a",
@@ -649,8 +827,9 @@ export default function ControlTowerPage() {
                                   <TaxCard
                                     key={rIdx}
                                     report={report}
-                                    onStepToggle={(sIdx) => handleStepToggle(company.id, monthIdx, rIdx, sIdx)}
+                                    onStepAction={(sIdx, action) => handleStepAction(company.id, monthIdx, rIdx, sIdx, action)}
                                     onMockConfirm={(title, onConfirm) => setMockModal({ title, onConfirm })}
+                                    onViewHistory={(step, title) => setHistoryModal({ step, title })}
                                   />
                               ))}
                             </div>
@@ -674,22 +853,79 @@ export default function ControlTowerPage() {
         </div>
       </div>
 
-      {/* Mock Modal */}
-      {mockModal && (
+      {/* Batch Floating Action Bar (2-step) */}
+      <div style={{
+        position: "fixed", bottom: 40, left: "50%",
+        transform: `translate(-50%, ${selectedCompanies.size > 0 ? "0" : "150px"})`,
+        opacity: selectedCompanies.size > 0 ? 1 : 0,
+        pointerEvents: selectedCompanies.size > 0 ? "auto" : "none",
+        zIndex: 9000,
+        background: "rgba(0, 0, 0, 0.85)",
+        backdropFilter: "blur(8px)",
+        borderRadius: 20,
+        padding: "12px 20px",
+        boxShadow: "0 10px 40px rgba(0,0,0,0.3)",
+        display: "flex", flexDirection: "column", gap: 12,
+        transition: "all 0.4s cubic-bezier(0.16, 1, 0.3, 1)"
+      }}>
+        {/* 1단계: 세목 탭 선택 */}
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <div style={{ fontSize: "0.85rem", fontWeight: 800, color: "#fff", whiteSpace: "nowrap" }}>
+            선택한 <span style={{ color: "#60a5fa", padding: "0 4px" }}>{selectedCompanies.size}</span>개 업체
+          </div>
+          <div style={{ width: 1, height: 16, background: "rgba(255,255,255,0.2)" }} />
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {Object.keys(BATCH_ACTIONS).map(tax => (
+              <button key={tax}
+                onClick={() => setBatchTaxTab(tax)}
+                style={{
+                  padding: "4px 10px", background: batchTaxTab === tax ? "#3b82f6" : "rgba(255,255,255,0.1)", border: "none",
+                  borderRadius: 999, fontSize: "0.7rem", fontWeight: 800, color: "#fff",
+                  cursor: "pointer", transition: "all 0.2s"
+                }}
+                onMouseEnter={e => { if(batchTaxTab !== tax) e.currentTarget.style.background = "rgba(255,255,255,0.25)"; }}
+                onMouseLeave={e => { if(batchTaxTab !== tax) e.currentTarget.style.background = "rgba(255,255,255,0.1)"; }}
+              >
+                {tax}
+              </button>
+            ))}
+          </div>
+        </div>
+        
+        {/* 2단계: 선택된 세목의 액션 버튼들 */}
+        <div style={{ borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: 12, display: "flex", gap: 8, justifyContent: "center" }}>
+          {BATCH_ACTIONS[batchTaxTab].map(actionLabel => (
+            <button key={actionLabel}
+              onClick={() => setBatchModal({ title: `[${batchTaxTab}] ${actionLabel}`, count: selectedCompanies.size, onConfirm: () => handleBatchAction(batchTaxTab, actionLabel) })}
+              style={{
+                padding: "6px 12px", background: "rgba(255,255,255,0.15)", border: "none",
+                borderRadius: 999, fontSize: "0.75rem", fontWeight: 700, color: "#fff",
+                cursor: "pointer", transition: "all 0.2s"
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.3)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.15)"; e.currentTarget.style.transform = "none"; }}
+            >
+              {actionLabel}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Batch Confirm Modal */}
+      {batchModal && (
         <div style={{
           position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
           background: "rgba(0,0,0,0.4)", zIndex: 100000,
           display: "flex", alignItems: "center", justifyContent: "center"
         }}>
           <div style={{ background: "#fff", padding: "28px 32px", borderRadius: 16, width: 340, boxShadow: "0 20px 40px rgba(0,0,0,0.2)" }}>
-            <h3 style={{ margin: "0 0 12px 0", fontSize: "1.1rem", color: "#0f172a", fontWeight: 800 }}>작업 상태 변경</h3>
+            <h3 style={{ margin: "0 0 12px 0", fontSize: "1.1rem", color: "#0f172a", fontWeight: 800 }}>일괄 전송 확인</h3>
             <p style={{ margin: "0 0 24px 0", fontSize: "0.85rem", color: "#475569", lineHeight: 1.5 }}>
-              <strong>{mockModal.title}</strong> 작업을 완료 처리하시겠습니까?
-              <br/><span style={{ color: "#94a3b8", fontSize: "0.75rem" }}>(※ 실제 API 호출은 생략된 목업입니다)</span>
+              선택한 <strong>{batchModal.count}개 업체</strong>에 {batchModal.title}을(를) 발송하시겠습니까?
             </p>
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
               <button 
-                onClick={() => setMockModal(null)} 
+                onClick={() => setBatchModal(null)} 
                 style={{ padding: "8px 16px", background: "#f1f5f9", border: "none", borderRadius: 8, color: "#475569", cursor: "pointer", fontWeight: 700, transition: "background 0.2s" }}
                 onMouseEnter={e => e.currentTarget.style.background = "#e2e8f0"}
                 onMouseLeave={e => e.currentTarget.style.background = "#f1f5f9"}
@@ -698,9 +934,8 @@ export default function ControlTowerPage() {
               </button>
               <button 
                 onClick={() => {
-                  mockModal.onConfirm();
-                  setMockModal(null);
-                  showToast(`"${mockModal.title}" 완료`);
+                  batchModal.onConfirm();
+                  setBatchModal(null);
                 }} 
                 style={{ padding: "8px 16px", background: "#2563eb", border: "none", borderRadius: 8, color: "#fff", cursor: "pointer", fontWeight: 700, transition: "background 0.2s", boxShadow: "0 4px 12px rgba(37,99,235,0.2)" }}
                 onMouseEnter={e => e.currentTarget.style.background = "#1d4ed8"}
@@ -713,10 +948,90 @@ export default function ControlTowerPage() {
         </div>
       )}
 
+      {/* History Modal */}
+      {historyModal && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+          background: "rgba(0,0,0,0.4)", zIndex: 100000,
+          display: "flex", alignItems: "center", justifyContent: "center"
+        }}>
+          <div style={{ background: "#fff", padding: "28px 32px", borderRadius: 16, width: 440, maxHeight: "80vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 40px rgba(0,0,0,0.2)" }}>
+            <h3 style={{ margin: "0 0 12px 0", fontSize: "1.2rem", color: "#0f172a", fontWeight: 800 }}>실행 이력</h3>
+            <p style={{ margin: "0 0 16px 0", fontSize: "0.9rem", color: "#475569", fontWeight: 600 }}>{historyModal.title}</p>
+            
+            <div style={{ flex: 1, overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: 8, padding: 12, background: "#f8fafc" }}>
+              {(historyModal.step.executionHistory && historyModal.step.executionHistory.length > 0) ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {[...historyModal.step.executionHistory].reverse().map((log, idx) => (
+                    <div key={idx} style={{ background: "#fff", padding: "10px 14px", borderRadius: 8, border: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div>
+                        <div style={{ fontSize: "0.75rem", color: "#94a3b8", marginBottom: 2 }}>{new Date(log.timestamp).toLocaleString()}</div>
+                        <div style={{ fontSize: "0.85rem", color: "#334155", fontWeight: 700 }}>실행자: {log.executor}</div>
+                      </div>
+                      <span style={{
+                        fontSize: "0.7rem", fontWeight: 800, padding: "2px 8px", borderRadius: 999,
+                        background: log.status === "success" ? "#dcfce7" : "#fee2e2",
+                        color: log.status === "success" ? "#16a34a" : "#dc2626"
+                      }}>
+                        {log.status === "success" ? "성공" : "실패"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ textAlign: "center", padding: "30px 0", color: "#94a3b8", fontSize: "0.85rem" }}>
+                  이력이 없습니다.
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 20 }}>
+              <button 
+                onClick={() => setHistoryModal(null)} 
+                style={{ padding: "8px 20px", background: "#f1f5f9", border: "none", borderRadius: 8, color: "#475569", cursor: "pointer", fontWeight: 700, transition: "background 0.2s" }}
+                onMouseEnter={e => e.currentTarget.style.background = "#e2e8f0"}
+                onMouseLeave={e => e.currentTarget.style.background = "#f1f5f9"}
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style jsx global>{`
-        @keyframes fadeInDown {
-          from { opacity: 0; transform: translateY(-12px); }
-          to { opacity: 1; transform: translateY(0); }
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translate(-50%, 12px); }
+          to { opacity: 1; transform: translate(-50%, 0); }
+        }
+        .custom-checkbox {
+          appearance: none;
+          width: 11px;
+          height: 11px;
+          border: 1px solid #cbd5e1;
+          border-radius: 2px;
+          background-color: #fff;
+          cursor: pointer;
+          transition: all 0.2s;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          margin: 0;
+          flex-shrink: 0;
+        }
+        .custom-checkbox:hover {
+          border-color: #94a3b8;
+          background-color: #f8fafc;
+        }
+        .custom-checkbox:checked {
+          background-color: #3b82f6;
+          border-color: #3b82f6;
+        }
+        .custom-checkbox:checked::after {
+          content: "✔";
+          color: white;
+          font-size: 8px;
+          font-weight: 800;
         }
       `}</style>
     </div>
