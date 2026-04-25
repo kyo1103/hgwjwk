@@ -244,6 +244,7 @@ export default function ControlTowerPage() {
 
   // ── 필터 상태 ──
   const [searchQuery, setSearchQuery] = useState("");
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [filterManager, setFilterManager] = useState("전체");
   const [filterType, setFilterType] = useState("전체");
   const [filterIncompleteOnly, setFilterIncompleteOnly] = useState(false);
@@ -533,12 +534,41 @@ export default function ControlTowerPage() {
             placeholder="업체명 또는 사업자번호 검색"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
+            onFocus={() => setIsSearchFocused(true)}
+            onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
             style={{
               width: "100%", padding: "8px 12px 8px 32px", fontSize: "0.82rem", fontWeight: 600,
               border: "1px solid #e2e8f0", borderRadius: 6, outline: "none", background: "#f8fafc",
               color: "#0f172a", transition: "border-color 0.2s",
             }}
           />
+          {isSearchFocused && filteredCompanies.length > 0 && (
+            <div style={{
+              position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4, zIndex: 1000,
+              background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8,
+              boxShadow: "0 4px 12px rgba(0,0,0,0.1)", maxHeight: 300, overflowY: "auto"
+            }}>
+              {filteredCompanies.map(c => (
+                <div
+                  key={c.id}
+                  onClick={() => {
+                    setSearchQuery(c.name);
+                    scrollToRow(c.id);
+                  }}
+                  style={{
+                    padding: "8px 12px", cursor: "pointer", borderBottom: "1px solid #f1f5f9",
+                    display: "flex", justifyContent: "space-between", alignItems: "center",
+                    transition: "background 0.2s"
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = "#f8fafc"}
+                  onMouseLeave={e => e.currentTarget.style.background = "#fff"}
+                >
+                  <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "#0f172a" }}>{c.name}</span>
+                  <span style={{ fontSize: "0.7rem", color: "#94a3b8", fontWeight: 600 }}>{c.bizNo}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div style={{ width: 1, height: 26, background: "#e2e8f0", flexShrink: 0 }} />
