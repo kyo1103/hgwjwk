@@ -50,11 +50,12 @@ const BATCH_ACTIONS: Record<string, string[]> = {
 
 /* ─────────────────────────── 서브 컴포넌트 ─────────────────────────── */
 
-function TaxCard({ report, onStepAction, onMockConfirm, onViewHistory }: {
+function TaxCard({ report, onStepAction, onMockConfirm, onViewHistory, reportMonth }: {
   report: TaxReport;
   onStepAction: (i: number, action: "complete" | "resend" | "cancel") => void;
   onMockConfirm?: (title: string, onConfirm: () => void) => void;
   onViewHistory?: (step: ReportStep, title: string) => void;
+  reportMonth: number;
 }) {
   const tc = TAX_COLORS[report.taxType] || TAX_COLORS["원천세"];
 
@@ -78,6 +79,85 @@ function TaxCard({ report, onStepAction, onMockConfirm, onViewHistory }: {
   };
 
   const isAllDone = report.steps.every(s => s.status === "done");
+  const [isHovered, setIsHovered] = useState(false);
+
+  // 마감일 계산
+  const getDeadline = (taxType: string, month: number) => {
+    const year = new Date().getFullYear();
+    if (taxType === "원천세") return new Date(year, month, 10);
+    if (taxType === "부가세") return new Date(year, month - 1, 25);
+    if (taxType === "법인세") return new Date(year, 2, 31);
+    if (taxType === "종합소득세") return new Date(year, 4, 31);
+    if (taxType === "연말정산") return new Date(year, 2, 10);
+    return null;
+  };
+
+  const deadline = getDeadline(report.taxType, reportMonth);
+  let daysToDeadline: number | null = null;
+  if (deadline) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    deadline.setHours(0, 0, 0, 0);
+    daysToDeadline = Math.floor((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  }
+
+  // 마지막 작업일 계산
+  let lastWorkTimestamp: number | null = null;
+  report.steps.forEach(s => {
+    s.executionHistory?.forEach(h => {
+      const ts = new Date(h.timestamp).getTime();
+      if (!lastWorkTimestamp || ts > lastWorkTimestamp) lastWorkTimestamp = ts;
+    });
+  });
+  const daysSinceLastWork = lastWorkTimestamp ? Math.floor((Date.now() - lastWorkTimestamp) / (1000 * 60 * 60 * 24)) : null;
+
+  // 스타일 결정
+  let wrapperStyle: React.CSSProperties = {
+    border: `1.5px solid ${tc.border}`, borderRadius: 8, background: "#fff",
+    width: 175, flexShrink: 0,
+    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+    display: "flex", flexDirection: "column",
+    transition: "all 0.2s",
+  };
+
+  let headerRightElem = null;
+  let delayBadge = null;
+  let warningBadge = null;
+
+  const statusBadge = isAllDone ? (
+    <span style={{ fontSize: "0.55rem", fontWeight: 800, color: "#fff", background: tc.text, padding: "1px 5px", borderRadius: 4 }}>완료</span>
+  ) : (
+    <span style={{ fontSize: "0.55rem", fontWeight: 800, color: tc.text, background: "rgba(255,255,255,0.6)", padding: "1px 5px", borderRadius: 4 }}>진행</span>
+  );
+
+  if (isAllDone) {
+    if (!isHovered) {
+      wrapperStyle.opacity = 0.5;
+      wrapperStyle.filter = "saturate(0.6)";
+    }
+  } else {
+    if (daysToDeadline !== null) {
+      if (daysToDeadline < 0) {
+        wrapperStyle.borderLeft = "3px solid #ef4444";
+        wrapperStyle.background = "rgba(255, 0, 0, 0.08)";
+        delayBadge = <span style={{ fontSize: "0.55rem", fontWeight: 800, color: "#fff", background: "#ef4444", padding: "1px 5px", borderRadius: 4 }}>지연</span>;
+      } else if (daysToDeadline <= 1) {
+        wrapperStyle.borderLeft = "3px solid #ef4444";
+        wrapperStyle.background = "rgba(255, 0, 0, 0.04)";
+        delayBadge = <span style={{ fontSize: "0.55rem", fontWeight: 800, color: "#fff", background: "#ef4444", padding: "1px 5px", borderRadius: 4 }}>마감 임박</span>;
+      } else if (daysToDeadline <= 3) {
+        wrapperStyle.borderLeft = "3px solid #ef4444";
+        wrapperStyle.background = "rgba(255, 0, 0, 0.04)";
+      }
+    }
+
+    if (daysSinceLastWork !== null && daysSinceLastWork >= 7) {
+      warningBadge = <span style={{ fontSize: "0.55rem", fontWeight: 800, color: "#b45309", background: "rgba(255, 200, 0, 0.15)", padding: "1px 5px", borderRadius: 4 }}>7일 멈춤</span>;
+    } else if (daysSinceLastWork !== null) {
+      const dayText = daysSinceLastWork === 0 ? "오늘" : `${daysSinceLastWork}일 전`;
+      headerRightElem = <span style={{ fontSize: "0.6rem", color: "#94a3b8", fontWeight: 600 }}>마지막 {dayText}</span>;
+    }
+  }
 
   const PillButton = ({ step, idx }: { step: ReportStep, idx: number }) => {
     const done = step.status === "done";
@@ -173,12 +253,11 @@ function TaxCard({ report, onStepAction, onMockConfirm, onViewHistory }: {
   };
 
   return (
-    <div style={{
-      border: `1.5px solid ${tc.border}`, borderRadius: 8, background: "#fff",
-      width: 175, flexShrink: 0,
-      boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-      display: "flex", flexDirection: "column"
-    }}>
+    <div 
+      style={wrapperStyle}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
       <div style={{
         background: tc.bg, padding: "5px 8px", borderTopLeftRadius: 6, borderTopRightRadius: 6,
         display: "flex", justifyContent: "space-between", alignItems: "center",
@@ -186,16 +265,10 @@ function TaxCard({ report, onStepAction, onMockConfirm, onViewHistory }: {
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <span style={{ fontSize: "0.72rem", fontWeight: 800, color: tc.text }}>{report.taxType}</span>
-          {isAllDone ? (
-            <span style={{ fontSize: "0.55rem", fontWeight: 800, color: "#fff", background: tc.text, padding: "1px 5px", borderRadius: 4 }}>
-              완료
-            </span>
-          ) : (
-            <span style={{ fontSize: "0.55rem", fontWeight: 800, color: tc.text, background: "rgba(255,255,255,0.6)", padding: "1px 5px", borderRadius: 4 }}>
-              진행
-            </span>
-          )}
+          {warningBadge}
+          {delayBadge || statusBadge}
         </div>
+        {headerRightElem}
       </div>
 
       <div style={{ padding: "8px", display: "flex", flexDirection: "column", gap: 4, flex: 1, justifyContent: "center" }}>
@@ -959,6 +1032,7 @@ export default function ControlTowerPage() {
                                         onStepAction={(sIdx, action) => handleStepAction(company.id, monthIdx, rIdx, sIdx, action)}
                                         onMockConfirm={(title, onConfirm) => setMockModal({ title, onConfirm })}
                                         onViewHistory={(step, title) => setHistoryModal({ step, title })}
+                                        reportMonth={month}
                                       />
                                     ))}
                                   </div>
