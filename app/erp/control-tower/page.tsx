@@ -66,13 +66,6 @@ function TaxCard({ report, onStepAction, onMockConfirm, onViewHistory, reportMon
   const step2 = stepsLength > 2 ? report.steps[1] : null;
   const step3 = report.steps[stepsLength - 1];
 
-  let labelText = `${report.taxType} 작업중`;
-  if (report.taxType === "원천세") labelText = "급여·원천세 작업중";
-  else if (report.taxType === "법인세") labelText = "결산·세무조정 작업중";
-  else if (report.taxType === "종합소득세") labelText = "소득세 작업중";
-  else if (report.taxType === "연말정산") labelText = "정산작업중";
-  else if (report.taxType === "부가세") labelText = "장부·부가세 작업중";
-
   const handleAction = (label: string, done: boolean, sIdx: number) => {
     if (done) return;
     onStepAction(sIdx, "complete");
@@ -101,15 +94,52 @@ function TaxCard({ report, onStepAction, onMockConfirm, onViewHistory, reportMon
     daysToDeadline = Math.floor((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   }
 
-  // 마지막 작업일 계산
+  // 마지막 작업일 계산 및 라벨 설정
   let lastWorkTimestamp: number | null = null;
+  let lastExecutor: string | null = null;
+  let lastStepLabel: string | null = null;
+
   report.steps.forEach(s => {
+    let sLastTs: number | null = null;
+    let sLastExec: string | null = null;
     s.executionHistory?.forEach(h => {
       const ts = new Date(h.timestamp).getTime();
-      if (!lastWorkTimestamp || ts > lastWorkTimestamp) lastWorkTimestamp = ts;
+      if (!sLastTs || ts > sLastTs) {
+        sLastTs = ts;
+        sLastExec = h.executor;
+      }
     });
+
+    if (sLastTs && (!lastWorkTimestamp || sLastTs > lastWorkTimestamp)) {
+      lastWorkTimestamp = sLastTs;
+      lastExecutor = sLastExec;
+      lastStepLabel = s.label;
+    }
   });
+
   const daysSinceLastWork = lastWorkTimestamp ? Math.floor((Date.now() - lastWorkTimestamp) / (1000 * 60 * 60 * 24)) : null;
+  
+  const nextStep = report.steps.find(s => s.status !== "done");
+  const nextStepLabel = nextStep ? nextStep.label : null;
+
+  let labelText = "";
+  if (isAllDone) {
+    labelText = `${report.taxType} · 완료`;
+  } else if (!lastStepLabel) {
+    labelText = `${report.taxType} · 시작 전`;
+  } else {
+    labelText = `${report.taxType} · ${lastStepLabel} 완료`;
+  }
+
+  let tooltip = "";
+  if (isAllDone) {
+    tooltip = "모든 작업이 완료되었습니다.";
+  } else if (!lastStepLabel) {
+    tooltip = `다음 단계: ${nextStepLabel}`;
+  } else {
+    const dayStr = daysSinceLastWork === 0 ? "오늘" : daysSinceLastWork === 1 ? "어제" : `${daysSinceLastWork}일 전`;
+    tooltip = `마지막 작업: ${lastStepLabel} (${dayStr}${lastExecutor ? `, ${lastExecutor}` : ""})\n다음 단계: ${nextStepLabel}`;
+  }
 
   // 스타일 결정
   let wrapperStyle: React.CSSProperties = {
@@ -151,13 +181,42 @@ function TaxCard({ report, onStepAction, onMockConfirm, onViewHistory, reportMon
       }
     }
 
-    if (daysSinceLastWork !== null && daysSinceLastWork >= 7) {
-      warningBadge = <span style={{ fontSize: "0.55rem", fontWeight: 800, color: "#b45309", background: "rgba(255, 200, 0, 0.15)", padding: "1px 5px", borderRadius: 4 }}>7일 멈춤</span>;
-    } else if (daysSinceLastWork !== null) {
-      const dayText = daysSinceLastWork === 0 ? "오늘" : `${daysSinceLastWork}일 전`;
-      headerRightElem = <span style={{ fontSize: "0.6rem", color: "#94a3b8", fontWeight: 600 }}>마지막 {dayText}</span>;
+    if (daysSinceLastWork !== null) {
+      let dayText = `${daysSinceLastWork}일 전`;
+      if (daysSinceLastWork === 0) dayText = "오늘";
+      else if (daysSinceLastWork === 1) dayText = "어제";
+
+      let color = "#94a3b8";
+      let icon = "";
+
+      if (daysSinceLastWork >= 14) {
+        color = "#ef4444";
+        icon = "⚠️ ";
+      } else if (daysSinceLastWork >= 7) {
+        color = "#f59e0b";
+        warningBadge = <span style={{ fontSize: "0.55rem", fontWeight: 800, color: "#b45309", background: "rgba(255, 200, 0, 0.15)", padding: "1px 5px", borderRadius: 4 }}>7일 멈춤</span>;
+      }
+
+      headerRightElem = (
+        <span style={{ fontSize: "0.6rem", color, fontWeight: 700 }}>
+          {icon}{daysSinceLastWork === 0 || daysSinceLastWork === 1 ? dayText : `${dayText}`}
+        </span>
+      );
     }
   }
+
+  const indicatorElem = (
+    <div style={{ display: "flex", gap: 4, padding: "6px 8px 0 8px", justifyContent: "center" }}>
+      {report.steps.map((s, i) => (
+        <div key={i} style={{
+          width: 6, height: 6, borderRadius: "50%",
+          background: s.status === "done" ? tc.text : "transparent",
+          border: `1px solid ${tc.text}`,
+          opacity: s.status === "done" ? 1 : 0.4
+        }} />
+      ))}
+    </div>
+  );
 
   const PillButton = ({ step, idx }: { step: ReportStep, idx: number }) => {
     const done = step.status === "done";
@@ -255,6 +314,7 @@ function TaxCard({ report, onStepAction, onMockConfirm, onViewHistory, reportMon
   return (
     <div 
       style={wrapperStyle}
+      title={tooltip}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -270,6 +330,8 @@ function TaxCard({ report, onStepAction, onMockConfirm, onViewHistory, reportMon
         </div>
         {headerRightElem}
       </div>
+      
+      {indicatorElem}
 
       <div style={{ padding: "8px", display: "flex", flexDirection: "column", gap: 4, flex: 1, justifyContent: "center" }}>
 
@@ -277,11 +339,11 @@ function TaxCard({ report, onStepAction, onMockConfirm, onViewHistory, reportMon
         {step2 && <PillButton step={step2} idx={1} />}
 
         <div style={{
-          textAlign: "center", fontSize: "0.65rem", fontWeight: 700, color: "#64748b",
+          textAlign: "center", fontSize: "11px", fontWeight: 600, color: "#94a3b8",
           display: "flex", justifyContent: "center", alignItems: "center", gap: 4,
           padding: "4px 0"
         }}>
-          {!isAllDone && (
+          {!isAllDone && lastStepLabel && (
             <svg style={{ animation: "spin 2s linear infinite", width: 10, height: 10, color: "#94a3b8" }} fill="none" viewBox="0 0 24 24">
               <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25"></circle>
               <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" className="opacity-75"></path>
