@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useCallback, useMemo } from "react";
+import React, { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import Link from "next/link";
 import {
   type ReportStep,
@@ -84,7 +84,7 @@ function TaxCard({ report, onStepAction, onMockConfirm, onViewHistory }: {
     const historyCount = step.executionHistory?.length || 0;
     const badgeText = historyCount >= 2 ? ` (${historyCount})` : "";
     const [dropdownOpen, setDropdownOpen] = useState(false);
-    
+
     // Close dropdown on click outside
     const ddRef = useRef<HTMLDivElement>(null);
     React.useEffect(() => {
@@ -148,22 +148,22 @@ function TaxCard({ report, onStepAction, onMockConfirm, onViewHistory }: {
           }}>
             <button onClick={() => {
               setDropdownOpen(false);
-              if (onMockConfirm) onMockConfirm(step.label + " 다시 보내기 " , () => onStepAction(idx, "resend"));
+              if (onMockConfirm) onMockConfirm(step.label + " 다시 보내기 ", () => onStepAction(idx, "resend"));
               else onStepAction(idx, "resend");
-            }} style={{ width: "100%", padding: "6px 8px", textAlign: "left", background: "none", border: "none", cursor: "pointer", borderRadius: 4, color: "#334155" }} onMouseEnter={e => e.currentTarget.style.background="#f1f5f9"} onMouseLeave={e => e.currentTarget.style.background="none"}>
+            }} style={{ width: "100%", padding: "6px 8px", textAlign: "left", background: "none", border: "none", cursor: "pointer", borderRadius: 4, color: "#334155" }} onMouseEnter={e => e.currentTarget.style.background = "#f1f5f9"} onMouseLeave={e => e.currentTarget.style.background = "none"}>
               다시 보내기
             </button>
             <button onClick={() => {
               setDropdownOpen(false);
               onStepAction(idx, "cancel");
-            }} style={{ width: "100%", padding: "6px 8px", textAlign: "left", background: "none", border: "none", cursor: "pointer", borderRadius: 4, color: "#334155" }} onMouseEnter={e => e.currentTarget.style.background="#f1f5f9"} onMouseLeave={e => e.currentTarget.style.background="none"}>
+            }} style={{ width: "100%", padding: "6px 8px", textAlign: "left", background: "none", border: "none", cursor: "pointer", borderRadius: 4, color: "#334155" }} onMouseEnter={e => e.currentTarget.style.background = "#f1f5f9"} onMouseLeave={e => e.currentTarget.style.background = "none"}>
               완료 취소
             </button>
             <div style={{ height: 1, background: "#e2e8f0", margin: "4px 0" }} />
             <button onClick={() => {
               setDropdownOpen(false);
               if (onViewHistory) onViewHistory(step, `${report.taxType} - ${step.label}`);
-            }} style={{ width: "100%", padding: "6px 8px", textAlign: "left", background: "none", border: "none", cursor: "pointer", borderRadius: 4, color: "#334155" }} onMouseEnter={e => e.currentTarget.style.background="#f1f5f9"} onMouseLeave={e => e.currentTarget.style.background="none"}>
+            }} style={{ width: "100%", padding: "6px 8px", textAlign: "left", background: "none", border: "none", cursor: "pointer", borderRadius: 4, color: "#334155" }} onMouseEnter={e => e.currentTarget.style.background = "#f1f5f9"} onMouseLeave={e => e.currentTarget.style.background = "none"}>
               이력 보기
             </button>
           </div>
@@ -185,25 +185,25 @@ function TaxCard({ report, onStepAction, onMockConfirm, onViewHistory }: {
         borderBottom: `1px solid ${tc.border}`,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-           <span style={{ fontSize: "0.72rem", fontWeight: 800, color: tc.text }}>{report.taxType}</span>
-           {isAllDone ? (
-             <span style={{ fontSize: "0.55rem", fontWeight: 800, color: "#fff", background: tc.text, padding: "1px 5px", borderRadius: 4 }}>
-               완료
-             </span>
-           ) : (
-             <span style={{ fontSize: "0.55rem", fontWeight: 800, color: tc.text, background: "rgba(255,255,255,0.6)", padding: "1px 5px", borderRadius: 4 }}>
-               진행
-             </span>
-           )}
+          <span style={{ fontSize: "0.72rem", fontWeight: 800, color: tc.text }}>{report.taxType}</span>
+          {isAllDone ? (
+            <span style={{ fontSize: "0.55rem", fontWeight: 800, color: "#fff", background: tc.text, padding: "1px 5px", borderRadius: 4 }}>
+              완료
+            </span>
+          ) : (
+            <span style={{ fontSize: "0.55rem", fontWeight: 800, color: tc.text, background: "rgba(255,255,255,0.6)", padding: "1px 5px", borderRadius: 4 }}>
+              진행
+            </span>
+          )}
         </div>
       </div>
 
       <div style={{ padding: "8px", display: "flex", flexDirection: "column", gap: 4, flex: 1, justifyContent: "center" }}>
-        
+
         <PillButton step={step1} idx={0} />
         {step2 && <PillButton step={step2} idx={1} />}
 
-        <div style={{ 
+        <div style={{
           textAlign: "center", fontSize: "0.65rem", fontWeight: 700, color: "#64748b",
           display: "flex", justifyContent: "center", alignItems: "center", gap: 4,
           padding: "4px 0"
@@ -229,6 +229,13 @@ function TaxCard({ report, onStepAction, onMockConfirm, onViewHistory }: {
 const STICKY_COL_W = 260;
 const MONTH_COL_W = 500;
 
+const QUARTERS = [
+  { id: "q1", months: [1, 2, 3] },
+  { id: "q2", months: [4, 5, 6] },
+  { id: "q3", months: [7, 8, 9] },
+  { id: "q4", months: [10, 11, 12] },
+];
+
 /* ─────────────────────────── 메인 페이지 ─────────────────────────── */
 
 export default function ControlTowerPage() {
@@ -241,6 +248,53 @@ export default function ControlTowerPage() {
   const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
   const [selectedCompanies, setSelectedCompanies] = useState<Set<string>>(new Set());
   const [batchTaxTab, setBatchTaxTab] = useState<string>("원천세");
+
+  const [activeQuarter, setActiveQuarter] = useState<number>(0);
+  const [currentMonth, setCurrentMonth] = useState<number>(0);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const month = new Date().getMonth() + 1;
+    setCurrentMonth(month);
+    const qIdx = Math.floor((month - 1) / 3);
+    setActiveQuarter(qIdx);
+    
+    // Auto-scroll to current quarter on mount
+    const timer = setTimeout(() => {
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTo({ left: qIdx * 3 * MONTH_COL_W, behavior: "smooth" });
+      }
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleScroll = useCallback(() => {
+    if (!scrollContainerRef.current) return;
+    const scrollLeft = scrollContainerRef.current.scrollLeft;
+    // Calculate active quarter based on scroll position + some offset
+    const qIdx = Math.floor((scrollLeft + MONTH_COL_W * 1.5) / (3 * MONTH_COL_W));
+    if (qIdx >= 0 && qIdx < 4) {
+      setActiveQuarter(qIdx);
+    }
+  }, []);
+
+  const quarterStats = useMemo(() => {
+    return QUARTERS.map(q => {
+      let totalSteps = 0;
+      let doneSteps = 0;
+      companies.forEach(c => {
+        c.months.forEach(m => {
+          if (q.months.includes(m.month)) {
+            m.reports.forEach(r => {
+              totalSteps += r.steps.length;
+              doneSteps += r.steps.filter(s => s.status === "done").length;
+            });
+          }
+        });
+      });
+      return { totalSteps, doneSteps };
+    });
+  }, [companies]);
 
   // ── 필터 상태 ──
   const [searchQuery, setSearchQuery] = useState("");
@@ -313,7 +367,7 @@ export default function ControlTowerPage() {
             totalCount++;
             const allDone = r.steps.every(s => s.status === "done");
             const firstDone = r.steps[0].status === "done";
-            
+
             if (allDone) done++;
             else if (firstDone) inProgress++;
             else pending++;
@@ -346,10 +400,10 @@ export default function ControlTowerPage() {
           if (ri !== rIdx) return r;
           const newSteps = r.steps.map((s, si) => {
             if (si !== sIdx) return s;
-            
+
             let nextStatus: StepStatus = s.status;
             let nextHistory = s.executionHistory ? [...s.executionHistory] : [];
-            
+
             if (action === "complete" || action === "resend") {
               nextStatus = "done";
               nextHistory.push({
@@ -361,7 +415,7 @@ export default function ControlTowerPage() {
               nextStatus = "pending";
               if (nextHistory.length > 0) nextHistory.pop();
             }
-            
+
             return { ...s, status: nextStatus, executionHistory: nextHistory };
           });
           return { ...r, steps: newSteps };
@@ -375,26 +429,26 @@ export default function ControlTowerPage() {
       const companyTemp = companies.find(c => c.id === cId);
       const stepTemp = companyTemp?.months[mIdx].reports[rIdx].steps[sIdx];
       showToast(`${companyTemp?.shortName} - ${stepTemp?.label} 완료`, () => {
-         handleStepAction(cId, mIdx, rIdx, sIdx, "cancel");
+        handleStepAction(cId, mIdx, rIdx, sIdx, "cancel");
       });
     } else if (action === "resend") {
-       showToast(`다시 보내기 완료`);
+      showToast(`다시 보내기 완료`);
     } else if (action === "cancel") {
-       showToast(`완료 취소됨`);
+      showToast(`완료 취소됨`);
     }
   };
 
   const handleBatchAction = (taxType: string, actionLabel: string) => {
     setCompanies(prev => prev.map(c => {
       if (!selectedCompanies.has(c.id)) return c;
-      
+
       const newMonths = c.months.map(m => {
         const newReports = m.reports.map(r => {
           if (r.taxType !== taxType) return r;
 
           const newSteps = r.steps.map(s => {
             if (s.label !== actionLabel || s.status === "done") return s;
-            
+
             return {
               ...s,
               status: "done" as StepStatus,
@@ -510,11 +564,11 @@ export default function ControlTowerPage() {
             <span style={{ fontSize: "0.75rem", fontWeight: 800, color: "#0f172a" }}>{summaryStats.overallProgress}%</span>
           </div>
           <div style={{ width: "100%", height: 6, background: "#f1f5f9", borderRadius: 999, overflow: "hidden" }}>
-             <div style={{ 
-               width: `${summaryStats.overallProgress}%`, height: "100%", 
-               background: TAX_COLORS[summaryTab]?.text || "#3b82f6", 
-               borderRadius: 999, transition: "width 0.3s ease" 
-             }} />
+            <div style={{
+              width: `${summaryStats.overallProgress}%`, height: "100%",
+              background: TAX_COLORS[summaryTab]?.text || "#3b82f6",
+              borderRadius: 999, transition: "width 0.3s ease"
+            }} />
           </div>
         </div>
       </div>
@@ -657,13 +711,52 @@ export default function ControlTowerPage() {
 
       {/* ─── 스프레드시트 ─── */}
       <div style={{
+        display: "flex",
         border: `1px solid ${COLORS.border}`,
         borderRadius: 14,
         overflow: "hidden",
         boxShadow: "0 1px 6px rgba(0,0,0,0.05)",
         background: "#fff",
       }}>
-        <div style={{
+        {/* 왼쪽 분기 사이드바 */}
+        <div style={{ width: 46, flexShrink: 0, background: "#f8fafc", borderRight: `1px solid ${COLORS.border}`, display: "flex", flexDirection: "column" }}>
+          <div style={{ height: 47, borderBottom: `2px solid ${COLORS.border}` }} />
+          <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+            {QUARTERS.map((q, qIdx) => {
+              const isActive = activeQuarter === qIdx;
+              const stats = quarterStats[qIdx];
+              return (
+                <div key={q.id}
+                  onClick={() => {
+                    setActiveQuarter(qIdx);
+                    if (scrollContainerRef.current) {
+                      scrollContainerRef.current.scrollTo({ left: qIdx * 3 * MONTH_COL_W, behavior: "smooth" });
+                    }
+                  }}
+                  style={{
+                    flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2,
+                    cursor: "pointer", borderBottom: qIdx < 3 ? `1px solid ${COLORS.border}` : "none",
+                    background: isActive ? "#eff6ff" : "transparent",
+                    borderLeft: isActive ? "2px solid #2563eb" : "2px solid transparent",
+                    transition: "all 0.2s",
+                  }}
+                  onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "#f1f5f9" }}
+                  onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent" }}
+                >
+                  <span style={{ fontSize: "12px", fontWeight: 500, color: isActive ? "#1d4ed8" : "#475569", letterSpacing: "0.05em" }}>
+                    {qIdx + 1}Q
+                  </span>
+                  <span style={{ fontSize: "9px", color: "#94a3b8", fontWeight: 500 }}>
+                    {stats.doneSteps}/{stats.totalSteps}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div ref={scrollContainerRef} onScroll={handleScroll} style={{
+          flex: 1,
           overflow: "auto",
           maxHeight: "calc(100vh - 290px)",
           minHeight: 450,
@@ -694,7 +787,7 @@ export default function ControlTowerPage() {
                   display: "flex", alignItems: "center", gap: 10
                 }}>
                   <input type="checkbox" style={CHECKBOX_STYLE}
-                    checked={selectedCompanies.size === companies.length && companies.length > 0} 
+                    checked={selectedCompanies.size === companies.length && companies.length > 0}
                     onChange={e => {
                       if (e.target.checked) setSelectedCompanies(new Set(companies.map(c => c.id)));
                       else setSelectedCompanies(new Set());
@@ -710,18 +803,24 @@ export default function ControlTowerPage() {
                 </th>
 
                 {/* 월 헤더 */}
-                {MONTHS.map(m => (
-                  <th key={m} style={{
-                    position: "sticky", top: 0, zIndex: 20,
-                    background: "#f1f5f9", padding: "14px 20px",
-                    textAlign: "center", fontSize: "0.9rem", fontWeight: 800,
-                    color: "#334155", letterSpacing: "0.02em",
-                    borderBottom: `2px solid ${COLORS.border}`,
-                    borderRight: `1px solid ${COLORS.border}`,
-                  }}>
-                    {m}월
-                  </th>
-                ))}
+                {MONTHS.map(m => {
+                  const isCurrentMonth = m === currentMonth;
+                  return (
+                    <th key={m} style={{
+                      position: "sticky", top: 0, zIndex: 20,
+                      background: "#f1f5f9", padding: "14px 20px",
+                      textAlign: "center", fontSize: "0.9rem", fontWeight: 800,
+                      color: isCurrentMonth ? "#0f172a" : "#334155", letterSpacing: "0.02em",
+                      borderBottom: `2px solid ${COLORS.border}`,
+                      borderRight: `1px solid ${COLORS.border}`,
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                        {m}월
+                        {isCurrentMonth && <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#3b82f6" }} title="현재 월" />}
+                      </div>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
 
@@ -745,17 +844,17 @@ export default function ControlTowerPage() {
                         display: "flex", alignItems: "center", gap: 8
                       }}>
                         <input type="checkbox" style={CHECKBOX_STYLE}
-                         onClick={(e) => e.stopPropagation()}
-                         checked={groupList.length > 0 && groupList.every(c => selectedCompanies.has(c.id))}
-                         onChange={e => {
-                           const newSet = new Set(selectedCompanies);
-                           if (e.target.checked) {
-                             groupList.forEach(c => newSet.add(c.id));
-                           } else {
-                             groupList.forEach(c => newSet.delete(c.id));
-                           }
-                           setSelectedCompanies(newSet);
-                         }}
+                          onClick={(e) => e.stopPropagation()}
+                          checked={groupList.length > 0 && groupList.every(c => selectedCompanies.has(c.id))}
+                          onChange={e => {
+                            const newSet = new Set(selectedCompanies);
+                            if (e.target.checked) {
+                              groupList.forEach(c => newSet.add(c.id));
+                            } else {
+                              groupList.forEach(c => newSet.delete(c.id));
+                            }
+                            setSelectedCompanies(newSet);
+                          }}
                         />
                         <div style={{
                           display: "flex", alignItems: "center", justifyContent: "center",
@@ -765,16 +864,16 @@ export default function ControlTowerPage() {
                         }}>▶</div>
                         <span style={{ fontSize: "1.1rem" }}>{cateMeta.icon}</span>
                         <span>{category}</span>
-                        <span style={{ 
-                          background: "#fff", padding: "2px 8px", borderRadius: 99, 
-                          fontSize: "0.75rem", color: "#475569", fontWeight: 700 
+                        <span style={{
+                          background: "#fff", padding: "2px 8px", borderRadius: 99,
+                          fontSize: "0.75rem", color: "#475569", fontWeight: 700
                         }}>
                           {groupList.length}
                         </span>
                       </td>
                       <td colSpan={MONTHS.length} style={{ borderBottom: `2px solid ${COLORS.border}`, background: "#f8fafc" }} />
                     </tr>
-                    
+
                     {/* 업체 행 (열림 상태일 때) */}
                     {isExpanded && groupList.map((company, cIdx) => {
                       const isActive = activeRow === company.id;
@@ -792,7 +891,7 @@ export default function ControlTowerPage() {
                             transition: "background 0.2s",
                           }}
                         >
-                            <td
+                          <td
                             style={{
                               position: "sticky", left: 0, zIndex: 10,
                               background: isActive ? "#e0f2fe" : cIdx % 2 === 0 ? "#fff" : "#fafbfc",
@@ -803,78 +902,78 @@ export default function ControlTowerPage() {
                               verticalAlign: "top",
                             }}
                           >
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                        <input type="checkbox" style={{ ...CHECKBOX_STYLE, marginLeft: 4 }}
-                          checked={selectedCompanies.has(company.id)}
-                          onChange={e => {
-                            const newSet = new Set(selectedCompanies);
-                            if (e.target.checked) newSet.add(company.id);
-                            else newSet.delete(company.id);
-                            setSelectedCompanies(newSet);
-                          }}
-                        />
-                        <span style={{ fontSize: "0.85rem" }}>{meta.icon}</span>
-                        <div onClick={() => scrollToRow(company.id)} style={{ cursor: "pointer" }}>
-                          <div style={{
-                            fontSize: "0.82rem", fontWeight: 700,
-                            color: isActive ? meta.color : "#0f172a",
-                            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                            maxWidth: 130,
-                          }}>{company.shortName}</div>
-                          <div style={{ fontSize: "0.65rem", color: "#94a3b8", fontWeight: 600 }}>
-                            {company.category} · {company.manager}
-                          </div>
-                        </div>
-                      </div>
-                      {/* 진행률 */}
-                      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                        <div style={{ flex: 1, height: 4, background: "#e2e8f0", borderRadius: 99, overflow: "hidden" }}>
-                          <div style={{
-                            width: `${pct}%`, height: "100%",
-                            background: pct === 100 ? COLORS.inProgress : meta.color,
-                            borderRadius: 99, transition: "width 0.3s",
-                          }} />
-                        </div>
-                        <span style={{ fontSize: "0.62rem", color: "#94a3b8", fontWeight: 700 }}>{pct}%</span>
-                      </div>
-                    </td>
-
-                    {/* ─── 월별 셀 ─── */}
-                    {MONTHS.map(month => {
-                      const monthData = company.months.find(m => m.month === month);
-                      const monthIdx = company.months.findIndex(m => m.month === month);
-
-                      return (
-                        <td key={month} style={{
-                          padding: "10px 12px",
-                          borderBottom: `1px solid ${COLORS.border}`,
-                          borderRight: `1px solid ${COLORS.border}`,
-                          verticalAlign: "top",
-                        }}>
-                          {monthData && monthData.reports.length > 0 ? (
-                            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                              {monthData.reports.map((report, rIdx) => (
-                                  <TaxCard
-                                    key={rIdx}
-                                    report={report}
-                                    onStepAction={(sIdx, action) => handleStepAction(company.id, monthIdx, rIdx, sIdx, action)}
-                                    onMockConfirm={(title, onConfirm) => setMockModal({ title, onConfirm })}
-                                    onViewHistory={(step, title) => setHistoryModal({ step, title })}
-                                  />
-                              ))}
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                              <input type="checkbox" style={{ ...CHECKBOX_STYLE, marginLeft: 4 }}
+                                checked={selectedCompanies.has(company.id)}
+                                onChange={e => {
+                                  const newSet = new Set(selectedCompanies);
+                                  if (e.target.checked) newSet.add(company.id);
+                                  else newSet.delete(company.id);
+                                  setSelectedCompanies(newSet);
+                                }}
+                              />
+                              <span style={{ fontSize: "0.85rem" }}>{meta.icon}</span>
+                              <div onClick={() => scrollToRow(company.id)} style={{ cursor: "pointer" }}>
+                                <div style={{
+                                  fontSize: "0.82rem", fontWeight: 700,
+                                  color: isActive ? meta.color : "#0f172a",
+                                  whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                                  maxWidth: 130,
+                                }}>{company.shortName}</div>
+                                <div style={{ fontSize: "0.65rem", color: "#94a3b8", fontWeight: 600 }}>
+                                  {company.category} · {company.manager}
+                                </div>
+                              </div>
                             </div>
-                          ) : (
-                            <div style={{
-                              display: "flex", alignItems: "center", justifyContent: "center",
-                              minHeight: 60, color: "#d1d5db", fontSize: "0.75rem", fontStyle: "italic",
-                            }}>—</div>
-                          )}
-                        </td>
+                            {/* 진행률 */}
+                            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                              <div style={{ flex: 1, height: 4, background: "#e2e8f0", borderRadius: 99, overflow: "hidden" }}>
+                                <div style={{
+                                  width: `${pct}%`, height: "100%",
+                                  background: pct === 100 ? COLORS.inProgress : meta.color,
+                                  borderRadius: 99, transition: "width 0.3s",
+                                }} />
+                              </div>
+                              <span style={{ fontSize: "0.62rem", color: "#94a3b8", fontWeight: 700 }}>{pct}%</span>
+                            </div>
+                          </td>
+
+                          {/* ─── 월별 셀 ─── */}
+                          {MONTHS.map(month => {
+                            const monthData = company.months.find(m => m.month === month);
+                            const monthIdx = company.months.findIndex(m => m.month === month);
+
+                            return (
+                              <td key={month} style={{
+                                padding: "10px 12px",
+                                borderBottom: `1px solid ${COLORS.border}`,
+                                borderRight: `1px solid ${COLORS.border}`,
+                                verticalAlign: "top",
+                              }}>
+                                {monthData && monthData.reports.length > 0 ? (
+                                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                                    {monthData.reports.map((report, rIdx) => (
+                                      <TaxCard
+                                        key={rIdx}
+                                        report={report}
+                                        onStepAction={(sIdx, action) => handleStepAction(company.id, monthIdx, rIdx, sIdx, action)}
+                                        onMockConfirm={(title, onConfirm) => setMockModal({ title, onConfirm })}
+                                        onViewHistory={(step, title) => setHistoryModal({ step, title })}
+                                      />
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div style={{
+                                    display: "flex", alignItems: "center", justifyContent: "center",
+                                    minHeight: 60, color: "#d1d5db", fontSize: "0.75rem", fontStyle: "italic",
+                                  }}>—</div>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
                       );
                     })}
-                  </tr>
-                );
-              })}
                   </React.Fragment>
                 );
               })}
@@ -913,15 +1012,15 @@ export default function ControlTowerPage() {
                   borderRadius: 999, fontSize: "0.7rem", fontWeight: 800, color: "#fff",
                   cursor: "pointer", transition: "all 0.2s"
                 }}
-                onMouseEnter={e => { if(batchTaxTab !== tax) e.currentTarget.style.background = "rgba(255,255,255,0.25)"; }}
-                onMouseLeave={e => { if(batchTaxTab !== tax) e.currentTarget.style.background = "rgba(255,255,255,0.1)"; }}
+                onMouseEnter={e => { if (batchTaxTab !== tax) e.currentTarget.style.background = "rgba(255,255,255,0.25)"; }}
+                onMouseLeave={e => { if (batchTaxTab !== tax) e.currentTarget.style.background = "rgba(255,255,255,0.1)"; }}
               >
                 {tax}
               </button>
             ))}
           </div>
         </div>
-        
+
         {/* 2단계: 선택된 세목의 액션 버튼들 */}
         <div style={{ borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: 12, display: "flex", gap: 8, justifyContent: "center" }}>
           {BATCH_ACTIONS[batchTaxTab].map(actionLabel => (
@@ -954,19 +1053,19 @@ export default function ControlTowerPage() {
               선택한 <strong>{batchModal.count}개 업체</strong>에 {batchModal.title}을(를) 발송하시겠습니까?
             </p>
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-              <button 
-                onClick={() => setBatchModal(null)} 
+              <button
+                onClick={() => setBatchModal(null)}
                 style={{ padding: "8px 16px", background: "#f1f5f9", border: "none", borderRadius: 8, color: "#475569", cursor: "pointer", fontWeight: 700, transition: "background 0.2s" }}
                 onMouseEnter={e => e.currentTarget.style.background = "#e2e8f0"}
                 onMouseLeave={e => e.currentTarget.style.background = "#f1f5f9"}
               >
                 취소
               </button>
-              <button 
+              <button
                 onClick={() => {
                   batchModal.onConfirm();
                   setBatchModal(null);
-                }} 
+                }}
                 style={{ padding: "8px 16px", background: "#2563eb", border: "none", borderRadius: 8, color: "#fff", cursor: "pointer", fontWeight: 700, transition: "background 0.2s", boxShadow: "0 4px 12px rgba(37,99,235,0.2)" }}
                 onMouseEnter={e => e.currentTarget.style.background = "#1d4ed8"}
                 onMouseLeave={e => e.currentTarget.style.background = "#2563eb"}
@@ -988,7 +1087,7 @@ export default function ControlTowerPage() {
           <div style={{ background: "#fff", padding: "28px 32px", borderRadius: 16, width: 440, maxHeight: "80vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 40px rgba(0,0,0,0.2)" }}>
             <h3 style={{ margin: "0 0 12px 0", fontSize: "1.2rem", color: "#0f172a", fontWeight: 800 }}>실행 이력</h3>
             <p style={{ margin: "0 0 16px 0", fontSize: "0.9rem", color: "#475569", fontWeight: 600 }}>{historyModal.title}</p>
-            
+
             <div style={{ flex: 1, overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: 8, padding: 12, background: "#f8fafc" }}>
               {(historyModal.step.executionHistory && historyModal.step.executionHistory.length > 0) ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -1016,8 +1115,8 @@ export default function ControlTowerPage() {
             </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 20 }}>
-              <button 
-                onClick={() => setHistoryModal(null)} 
+              <button
+                onClick={() => setHistoryModal(null)}
                 style={{ padding: "8px 20px", background: "#f1f5f9", border: "none", borderRadius: 8, color: "#475569", cursor: "pointer", fontWeight: 700, transition: "background 0.2s" }}
                 onMouseEnter={e => e.currentTarget.style.background = "#e2e8f0"}
                 onMouseLeave={e => e.currentTarget.style.background = "#f1f5f9"}
